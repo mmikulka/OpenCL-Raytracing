@@ -15,6 +15,7 @@
 #include "gfxalgebra.hpp"
 #include "gfximage.hpp"
 #include "rayson.hpp"
+#include "openCL.hpp"
 
 namespace gfx {
 
@@ -757,6 +758,8 @@ hdr_image scene::render() const noexcept {
     
     assert(viewport_->x_resolution() > 0);
     assert(viewport_->y_resolution() > 0);
+    
+    init_openCL();
     
     size_t w = viewport_->x_resolution(),
     h = viewport_->y_resolution();

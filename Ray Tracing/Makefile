@@ -1,5 +1,5 @@
 
-CLANG_FLAGS = -std=c++14 -Wall -O -g
+CLANG_FLAGS = -std=c++17 -Wall -O -g -framework OpenCL
 PNG_FLAGS = `libpng-config --cflags --ldflags`
 GTEST_FLAGS = -lpthread -lgtest_main -lgtest  -lpthread
 
@@ -7,11 +7,9 @@ default: fast
 
 all: fast slow
 
-headers: gfxalgebra.hpp gfximage.hpp gfxnumeric.hpp gfxpng.hpp gfxraytrace.hpp rayson.hpp
+headers: gfxalgebra.hpp gfximage.hpp gfxnumeric.hpp gfxpng.hpp gfxraytrace.hpp rayson.hpp openCL.hpp ocl_macros.h
 
 libraries: /usr/local/Cellar/png++/0.2.10/include/png++/png.hpp
-
-
 
 mrraytracer: headers libraries mrraytracer.cpp
 	clang++ ${CLANG_FLAGS} ${PNG_FLAGS} mrraytracer.cpp -o mrraytracer
@@ -30,19 +28,11 @@ fast: scene_gtri_ortho_flat.png \
 
 slow: teatime.png
 
-/usr/lib/libgtest.a:
-	@echo -e "google test library not installed\n"
-	@echo -e "Installing libgtest-dev. Please provide the password when asked\n"
-	@sudo apt-get -y install libgtest-dev cmake
-	@sudo apt-get install cmake # install cmake
-	@echo -e "\nConfiguring libgtest-dev\n"
-	@cd /usr/src/gtest; sudo cmake CMakeLists.txt; sudo make; sudo cp *.a /usr/lib
-	@echo -e "Finished installing google test library\n"
 
-/usr/include/png++/png.hpp:
+/usr/local/Cellar/png++/0.2.10/include/png++/png.hpp:
 	@echo -e "libpng++ library not installed\n"
 	@echo -e "Installing libpng++-dev. Please provide the password when asked\n"
-	@sudo apt-get -y install libpng++-dev
+	@sudo brew install png++
 
 clean:
 		rm -f mrraytracer *png
