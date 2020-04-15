@@ -1,3 +1,4 @@
+
 //
 //  gfxraytrace.hpp
 //  raytracer
@@ -15,7 +16,7 @@
 #include "gfxalgebra.hpp"
 #include "gfximage.hpp"
 #include "rayson.hpp"
-#include "openCL.hpp"
+#include "CLHelpers.hpp"
 
 namespace gfx {
 
@@ -726,6 +727,19 @@ scene scene::read_json(const std::string& path) noexcept(false) {
 
 //implimentation
 
+//conversion functions to clean up rest of code
+
+cam convertToStruct(camera camera_)
+{
+    cam cl_camera = {{{static_cast<float>(camera_->eye()[0]), static_cast<float>(camera_->eye()[1]), static_cast<float>(camera_->eye()[2])}},
+    {{static_cast<float>(camera_->u()[0]), static_cast<float>(camera_->u()[1]), static_cast<float>(camera_->u()[2])}},
+    {{static_cast<float>(camera_->v()[0]), static_cast<float>(camera_->v()[1]), static_cast<float>(camera_->v()[2])}},
+    {{static_cast<float>(camera_->w()[0]), static_cast<float>(camera_->w()[1]), static_cast<float>(camera_->w()[2])}}};
+    return cl_camera
+}
+
+
+
 std::unique_ptr<intersection> scene::intersect (const view_ray& ray) const noexcept {
     
     std::unique_ptr<intersection> hit = nullptr;
@@ -759,8 +773,6 @@ hdr_image scene::render() const noexcept {
     assert(viewport_->x_resolution() > 0);
     assert(viewport_->y_resolution() > 0);
     
-    init_openCL();
-    
     size_t w = viewport_->x_resolution(),
     h = viewport_->y_resolution();
     
@@ -768,26 +780,36 @@ hdr_image scene::render() const noexcept {
     hdr_image result(w, h, background_);
     assert(!result.is_empty());
     
+    int numPixels = h * w;
+    cl_float3 pixels[h * w];
+    
     for (size_t y = 0; y < h; ++y) {
         for (size_t x = 0; x < w; ++x) {
-       
-            //compute view ray
-            vector2<double> uv = viewport_->uv(x, y);
-            view_ray ray = projection_->compute_view_ray(*camera_, uv[0], uv[1]);
-            // if ray hits object then evaluate shading model
-            std::unique_ptr<intersection> xsect = intersect(ray);
-            if(xsect)
-            {
-                hdr_rgb color = shader_->shade(*this, *camera_, *xsect);
-                result.pixel(x, y, color);
-            }
-            else
-            {
-                //set pixel color to background
-                result.pixel(x, y, background_);
-            }
+            pixels[y * h + x] = {{y * 1.0f, x * 1.0f, 0.0f}};
         }
     }
+    
+    //compute view ray
+    cl_uv(pixels, numPixels);
+//    vector2<double> uv = viewport_->uv(x, y); //not needed for OpenCL declaration
+    
+    //convert gfx::camera to a struct.
+    cam cl_camera = convertToStruct(camera_);
+    
+/   cl_viewrays(cl_camera, pixels, numPixels);
+   // view_ray ray = projection_->compute_view_ray(*camera_, uv[0], uv[1]);
+    // if ray hits object then evaluate shading model
+//    std::unique_ptr<intersection> xsect = intersect(ray);
+//    if(xsect)
+//    {
+//        hdr_rgb color = shader_->shade(*this, *camera_, *xsect);
+//        result.pixel(x, y, color);
+//    }
+//    else
+//    {
+//        //set pixel color to background
+//        result.pixel(x, y, background_);
+//    }
     return result;
 }
 
@@ -879,8 +901,8 @@ hdr_rgb blinn_phong_shader::shade(const scene& scene,
 }
 
 std::unique_ptr<intersection> scene_sphere::intersect(const view_ray& ray,
-double t_min,
-double t_upper_bound) const noexcept
+                                                      double t_min,
+                                                      double t_upper_bound) const noexcept
 {
     
     //setup variables for quadratic equation

@@ -7,7 +7,7 @@ default: fast
 
 all: fast slow
 
-headers: gfxalgebra.hpp gfximage.hpp gfxnumeric.hpp gfxpng.hpp gfxraytrace.hpp rayson.hpp openCL.hpp ocl_macros.h
+headers: gfxalgebra.hpp gfximage.hpp gfxnumeric.hpp gfxpng.hpp gfxraytrace.hpp rayson.hpp CLHelpers.hpp CLStructs.hpp
 
 libraries: /usr/local/Cellar/png++/0.2.10/include/png++/png.hpp
 

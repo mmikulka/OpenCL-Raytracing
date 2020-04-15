@@ -1,18 +1,87 @@
-__kernel void NumericalReduction(__global int* data, __local int* localData, __global int *outData)
+typedef struct __attribute__((packed))_rgbColor
 {
-    size_t globalId = get_global_id(0);
-    size_t localSize = get_local_size(0);
-    size_t localId = get_local_id(0);
-    
-    localData[localId] = data[globalId];
-    barrier(CLK_LOCAL_MEM_FENCE);
-    
-    for (int i = localSize >> 1; i > 0 ; i >>= 1)
-    {
-        if (localId < i)
-            localData[localId] += localData[localId + i];
-        barrier(CLK_LOCAL_MEM_FENCE);
-    }
-    outData[get_group_id(0)] = 20;
+    float r;
+    float g;
+    float b;
+}rgbColor;
+
+typedef struct __attribute__((packed))_light
+{
+    float3 location;
+    rgbColor color;
+    float intensity;
+}lght;
+
+typedef struct __attribute__((packed))__cam
+{
+    float3 eye;
+    float3 u;
+    float3 v;
+    float3 w;
+}cam;
+
+typedef struct __attribute__((packed))_vp
+{
+    size_t x_resolution;
+    size_t y_resolution;
+    float left;
+    float right;
+    float top;
+    float bottom;
+}vp;
+
+typedef struct __attribute__((packed))_viewRay
+{
+    float3 orgin;
+    float3 direction;
+}viewRay;
+
+typedef struct __attribute__((packed))_phong
+{
+    float ambient_coef;
+    float diffuse_coef;
+    float specular_coef;
+    rgbColor ambient_color;
+}phong;
+
+typedef struct __attribute__((packed))_triangle
+{
+    rgbColor color;
+    float shininess;
+    float3 a;
+    float3 b;
+    float3 c;
+}triangle;
+
+typedef struct __attribute__((packed))_circle
+{
+    rgbColor color;
+    float shininess;
+    float3 center;
+    float radius;
+}circle;
+
+typedef struct __attribute__((packed))_intersect
+{
+    triangle *triangle_obj;
+    circle *circle_obj;
+    float3 location;
+    float3 normal;
+    float t_;
+}intersect;
+
+__kernel void uv(__global float3* arr, __global vp * viewPort, __global float3* z)
+{
+ const int i = get_global_id(0);
+    z[i].x = viewPort[i].left + ((viewPort[i].right - viewPort[i].left) * (arr[i].x + 0.5)) / viewPort[i].x_resolution;
+    z[i].y = viewPort[i].bottom + ((viewPort[i].top - viewPort[i].bottom) * (arr[i].y + 0.5)) / viewPort[i].y_resolution;
+    z[i].z = 0.0;
 }
 
+
+__kernel void parallel_add(__global float3* arr, __global float3* z){
+ const int i = get_global_id(0);
+    z[i].x = arr[i].x + arr[i].y;
+    z[i].y = 0.0;
+    z[i].z = 0.0;
+}
