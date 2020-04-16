@@ -729,13 +729,19 @@ scene scene::read_json(const std::string& path) noexcept(false) {
 
 //conversion functions to clean up rest of code
 
-cam convertToStruct(camera camera_)
+cam convert_cam_Struct(camera camera_)
 {
-    cam cl_camera = {{{static_cast<float>(camera_->eye()[0]), static_cast<float>(camera_->eye()[1]), static_cast<float>(camera_->eye()[2])}},
-    {{static_cast<float>(camera_->u()[0]), static_cast<float>(camera_->u()[1]), static_cast<float>(camera_->u()[2])}},
-    {{static_cast<float>(camera_->v()[0]), static_cast<float>(camera_->v()[1]), static_cast<float>(camera_->v()[2])}},
-    {{static_cast<float>(camera_->w()[0]), static_cast<float>(camera_->w()[1]), static_cast<float>(camera_->w()[2])}}};
-    return cl_camera
+    cam cl_camera = {{{static_cast<float>(camera_.eye()[0]), static_cast<float>(camera_.eye()[1]), static_cast<float>(camera_.eye()[2])}},
+        {{static_cast<float>(camera_.u()[0]), static_cast<float>(camera_.u()[1]), static_cast<float>(camera_.u()[2])}},
+        {{static_cast<float>(camera_.v()[0]), static_cast<float>(camera_.v()[1]), static_cast<float>(camera_.v()[2])}},
+        {{static_cast<float>(camera_.w()[0]), static_cast<float>(camera_.w()[1]), static_cast<float>(camera_.w()[2])}}};
+    return cl_camera;
+}
+
+vp convert_vp_Struct(viewport viewport_)
+{
+    vp viewPort = {viewport_.x_resolution(), viewport_.y_resolution(), static_cast<float>(viewport_.left()), static_cast<float>(viewport_.right()), static_cast<float>(viewport_.top()), static_cast<float>(viewport_.bottom())};
+    return viewPort;
 }
 
 
@@ -789,14 +795,16 @@ hdr_image scene::render() const noexcept {
         }
     }
     
+    vp cl_viewport = convert_vp_Struct(*viewport_);
+    
     //compute view ray
-    cl_uv(pixels, numPixels);
+    cl_uv(pixels, &cl_viewport, numPixels);
 //    vector2<double> uv = viewport_->uv(x, y); //not needed for OpenCL declaration
     
     //convert gfx::camera to a struct.
-    cam cl_camera = convertToStruct(camera_);
+    cam cl_camera = convert_cam_Struct(*camera_);
     
-/   cl_viewrays(cl_camera, pixels, numPixels);
+    cl_viewrays(cl_camera, pixels, numPixels);
    // view_ray ray = projection_->compute_view_ray(*camera_, uv[0], uv[1]);
     // if ray hits object then evaluate shading model
 //    std::unique_ptr<intersection> xsect = intersect(ray);

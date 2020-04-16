@@ -70,14 +70,13 @@ typedef struct __attribute__((packed))_intersect
     float t_;
 }intersect;
 
-__kernel void uv(__global float3* arr, __global vp * viewPort, __global float3* z)
+__kernel void uv(__global float3* pos, __global vp * viewPort, __global float3* out)
 {
  const int i = get_global_id(0);
-    z[i].x = viewPort[i].left + ((viewPort[i].right - viewPort[i].left) * (arr[i].x + 0.5)) / viewPort[i].x_resolution;
-    z[i].y = viewPort[i].bottom + ((viewPort[i].top - viewPort[i].bottom) * (arr[i].y + 0.5)) / viewPort[i].y_resolution;
-    z[i].z = 0.0;
+    out[i].x = viewPort[i].left + ((viewPort[i].right - viewPort[i].left) * (pos[i].x + 0.5)) / viewPort[i].x_resolution;
+    out[i].y = viewPort[i].bottom + ((viewPort[i].top - viewPort[i].bottom) * (pos[i].y + 0.5)) / viewPort[i].y_resolution;
+    out[i].z = 0.0;
 }
-
 
 __kernel void parallel_add(__global float3* arr, __global float3* z){
  const int i = get_global_id(0);
