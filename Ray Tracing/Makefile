@@ -1,9 +1,9 @@
 
-CLANG_FLAGS = -std=c++17 -Wall -O -g -framework OpenCL
+CLANG_FLAGS = -std=c++17 -Wall -g -framework OpenCL
 PNG_FLAGS = `libpng-config --cflags --ldflags`
 GTEST_FLAGS = -lpthread -lgtest_main -lgtest  -lpthread
 
-default: fast
+default: test
 
 all: fast slow
 
@@ -28,6 +28,7 @@ fast: scene_gtri_ortho_flat.png \
 
 slow: teatime.png
 
+test: scene_gtri_ortho_flat.png
 
 /usr/local/Cellar/png++/0.2.10/include/png++/png.hpp:
 	@echo -e "libpng++ library not installed\n"

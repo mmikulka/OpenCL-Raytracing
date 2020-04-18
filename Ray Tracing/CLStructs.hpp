@@ -42,8 +42,8 @@ typedef struct __attribute__((packed))__cam
 
 typedef struct __attribute__((packed))_vp
 {
-    size_t x_resolution;
-    size_t y_resolution;
+    float x_resolution;
+    float y_resolution;
     float left;
     float right;
     float top;

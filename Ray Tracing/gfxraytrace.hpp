@@ -728,16 +728,16 @@ scene scene::read_json(const std::string& path) noexcept(false) {
 
 cam convert_cam_Struct(camera camera_)
 {
-    cam cl_camera = {{static_cast<float>(camera_.eye()[0]), static_cast<float>(camera_.eye()[1]), static_cast<float>(camera_.eye()[2])},
-        {static_cast<float>(camera_.u()[0]), static_cast<float>(camera_.u()[1]), static_cast<float>(camera_.u()[2])},
-        {static_cast<float>(camera_.v()[0]), static_cast<float>(camera_.v()[1]), static_cast<float>(camera_.v()[2])},
-        {static_cast<float>(camera_.w()[0]), static_cast<float>(camera_.w()[1]), static_cast<float>(camera_.w()[2])}};
+    cam cl_camera = {{{static_cast<float>(camera_.eye()[0]), static_cast<float>(camera_.eye()[1]), static_cast<float>(camera_.eye()[2])}},
+        {{static_cast<float>(camera_.u()[0]), static_cast<float>(camera_.u()[1]), static_cast<float>(camera_.u()[2])}},
+        {{static_cast<float>(camera_.v()[0]), static_cast<float>(camera_.v()[1]), static_cast<float>(camera_.v()[2])}},
+        {{static_cast<float>(camera_.w()[0]), static_cast<float>(camera_.w()[1]), static_cast<float>(camera_.w()[2])}}};
     return cl_camera;
 }
 
 vp convert_vp_Struct(viewport viewport_)
 {
-    vp viewPort = {viewport_.x_resolution(), viewport_.y_resolution(), static_cast<float>(viewport_.left()), static_cast<float>(viewport_.right()), static_cast<float>(viewport_.top()), static_cast<float>(viewport_.bottom())};
+    vp viewPort = {static_cast<float>(viewport_.x_resolution()), static_cast<float>(viewport_.y_resolution()), static_cast<float>(viewport_.left()), static_cast<float>(viewport_.right()), static_cast<float>(viewport_.top()), static_cast<float>(viewport_.bottom())};
     return viewPort;
 }
 
@@ -788,14 +788,16 @@ hdr_image scene::render() const noexcept {
     
     for (size_t y = 0; y < h; ++y) {
         for (size_t x = 0; x < w; ++x) {
-            pixels[y * h + x] = {y * 1.0f, x * 1.0f, 0.0f};
+            pixels[y * h + x] = {{y * 1.0f, x * 1.0f, 0.0f}};
         }
     }
     
-    vp cl_viewport = convert_vp_Struct(*viewport_);
     
+    vp cl_viewport = convert_vp_Struct(*viewport_);
     //compute uv
-    cl_float2 * uV = cl_uv(pixels, &cl_viewport, numPixels);
+    cl_float2 * uV = cl_uv(pixels, cl_viewport, numPixels);
+    
+    std::cout << "got here" << std::endl;
 //    vector2<double> uv = viewport_->uv(x, y); //not needed for OpenCL declaration
     for (int i = 0; i < 10; ++i)
     {
@@ -803,7 +805,7 @@ hdr_image scene::render() const noexcept {
     }
     
     //convert gfx::camera to a struct.
-    cam cl_camera = convert_cam_Struct(*camera_);
+    //cam cl_camera = convert_cam_Struct(*camera_);
     
    //  viewRay* rays = projection_->compute_view_ray(cl_camera, uV, numPixels);
     // if ray hits object then evaluate shading model
@@ -835,13 +837,13 @@ constexpr camera::camera(const vector3<double>& eye,
 viewRay* orthographic_projection::compute_view_ray(cam& c,
                                                    cl_float2 * uv, int numPixels) const noexcept {
     
-    viewRay* rays = cl_ortho_viewrays(&c, uv, numPixels);
+    viewRay* rays; //cl_ortho_viewrays(&c, uv, numPixels);
     return rays;
 }
 
 viewRay*  perspective_projection::compute_view_ray(cam& c,
                                                   cl_float2 * uv, int numPixels) const noexcept {
-    viewRay* rays = cl_persp_viewrays(&c, uv, numPixels, static_cast<float>(focal_length_));
+    viewRay* rays; //cl_persp_viewrays(&c, uv, numPixels, static_cast<float>(focal_length_));
     return rays;
 }
 

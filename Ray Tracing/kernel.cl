@@ -35,8 +35,8 @@ typedef struct __attribute__((packed))__cam
 
 typedef struct __attribute__((packed))_vp
 {
-    size_t x_resolution;
-    size_t y_resolution;
+    float x_resolution;
+    float y_resolution;
     float left;
     float right;
     float top;
@@ -86,8 +86,8 @@ typedef struct __attribute__((packed))_intersect
 __kernel void uv(__global float3* pos, __global vp * viewPort, __global float2* out)
 {
  const int i = get_global_id(0);
-    out[i].x = viewPort[i].left + ((viewPort[i].right - viewPort[i].left) * (pos[i].x + 0.5)) / viewPort[i].x_resolution;
-    out[i].y = viewPort[i].bottom + ((viewPort[i].top - viewPort[i].bottom) * (pos[i].y + 0.5)) / viewPort[i].y_resolution;
+    out[i].x = viewPort->right;
+    out[i].y = viewPort->top;
 }
 
 
