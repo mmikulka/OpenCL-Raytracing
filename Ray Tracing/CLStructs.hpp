@@ -1,3 +1,10 @@
+/*
+ Structures that are needed since OpenCL does not deal with classes.
+ 
+ With these you pass less variables into the CL programs.
+ */
+#pragma once
+
 typedef struct __attribute__((packed))_vec3
 {
     float x;
@@ -20,17 +27,17 @@ typedef struct __attribute__((packed))_rgbColor
 
 typedef struct __attribute__((packed))_light
 {
-    float3 location;
+    cl_float3 location;
     rgbColor color;
     float intensity;
-}lght;
+}light;
 
 typedef struct __attribute__((packed))__cam
 {
-    float3 eye;
-    float3 u;
-    float3 v;
-    float3 w;
+    cl_float3 eye;
+    cl_float3 u;
+    cl_float3 v;
+    cl_float3 w;
 }cam;
 
 typedef struct __attribute__((packed))_vp
@@ -45,8 +52,8 @@ typedef struct __attribute__((packed))_vp
 
 typedef struct __attribute__((packed))_viewRay
 {
-    float3 origin;
-    float3 direction;
+    cl_float3 origin;
+    cl_float3 direction;
 }viewRay;
 
 typedef struct __attribute__((packed))_phong
@@ -61,16 +68,16 @@ typedef struct __attribute__((packed))_triangle
 {
     rgbColor color;
     float shininess;
-    float3 a;
-    float3 b;
-    float3 c;
+    cl_float3 a;
+    cl_float3 b;
+    cl_float3 c;
 }triangle;
 
 typedef struct __attribute__((packed))_circle
 {
     rgbColor color;
     float shininess;
-    float3 center;
+    cl_float3 center;
     float radius;
 }circle;
 
@@ -78,24 +85,7 @@ typedef struct __attribute__((packed))_intersect
 {
     triangle *triangle_obj;
     circle *circle_obj;
-    float3 location;
-    float3 normal;
+    cl_float3 location;
+    cl_float3 normal;
     float t_;
 }intersect;
-
-__kernel void uv(__global float3* pos, __global vp * viewPort, __global float2* out)
-{
- const int i = get_global_id(0);
-    out[i].x = viewPort[i].left + ((viewPort[i].right - viewPort[i].left) * (pos[i].x + 0.5)) / viewPort[i].x_resolution;
-    out[i].y = viewPort[i].bottom + ((viewPort[i].top - viewPort[i].bottom) * (pos[i].y + 0.5)) / viewPort[i].y_resolution;
-}
-
-
-
-
-__kernel void parallel_add(__global float3* arr, __global float3* z){
- const int i = get_global_id(0);
-    z[i].x = arr[i].x + arr[i].y;
-    z[i].y = 0.0;
-    z[i].z = 0.0;
-}

@@ -302,9 +302,8 @@ public:
     // Given a camera and (u, v) coordinate within the viewport,
     // create and return the corresponding viewing ray. (u, v) are
     // expected to come from the camera::uv function.
-    virtual view_ray compute_view_ray(const camera& c,
-                                      double u,
-                                      double v) const noexcept = 0;
+    virtual viewRay* compute_view_ray(cam& c,
+                                      cl_float2* uv, int numPixels) const noexcept = 0;
     
     virtual ~abstract_projection() noexcept = default;
 };
@@ -315,9 +314,8 @@ public:
     
     constexpr orthographic_projection() noexcept = default;
     
-    virtual view_ray compute_view_ray(const camera& c,
-                                      double u,
-                                      double v) const noexcept;
+    virtual viewRay* compute_view_ray(cam& c,
+                                      cl_float2* uv, int numPixels) const noexcept;
 };
 
 // Perspective implementation of abstract_projection.
@@ -340,9 +338,8 @@ public:
         return focal_length_;
     }
     
-    virtual view_ray compute_view_ray(const camera& c,
-                                      double u,
-                                      double v) const noexcept;
+    virtual viewRay* compute_view_ray(cam& c,
+                                      cl_float2* uv, int numPixels) const noexcept;
 };
 
 // Abstract class defining a shading algorithm.
@@ -731,10 +728,10 @@ scene scene::read_json(const std::string& path) noexcept(false) {
 
 cam convert_cam_Struct(camera camera_)
 {
-    cam cl_camera = {{{static_cast<float>(camera_.eye()[0]), static_cast<float>(camera_.eye()[1]), static_cast<float>(camera_.eye()[2])}},
-        {{static_cast<float>(camera_.u()[0]), static_cast<float>(camera_.u()[1]), static_cast<float>(camera_.u()[2])}},
-        {{static_cast<float>(camera_.v()[0]), static_cast<float>(camera_.v()[1]), static_cast<float>(camera_.v()[2])}},
-        {{static_cast<float>(camera_.w()[0]), static_cast<float>(camera_.w()[1]), static_cast<float>(camera_.w()[2])}}};
+    cam cl_camera = {{static_cast<float>(camera_.eye()[0]), static_cast<float>(camera_.eye()[1]), static_cast<float>(camera_.eye()[2])},
+        {static_cast<float>(camera_.u()[0]), static_cast<float>(camera_.u()[1]), static_cast<float>(camera_.u()[2])},
+        {static_cast<float>(camera_.v()[0]), static_cast<float>(camera_.v()[1]), static_cast<float>(camera_.v()[2])},
+        {static_cast<float>(camera_.w()[0]), static_cast<float>(camera_.w()[1]), static_cast<float>(camera_.w()[2])}};
     return cl_camera;
 }
 
@@ -791,21 +788,24 @@ hdr_image scene::render() const noexcept {
     
     for (size_t y = 0; y < h; ++y) {
         for (size_t x = 0; x < w; ++x) {
-            pixels[y * h + x] = {{y * 1.0f, x * 1.0f, 0.0f}};
+            pixels[y * h + x] = {y * 1.0f, x * 1.0f, 0.0f};
         }
     }
     
     vp cl_viewport = convert_vp_Struct(*viewport_);
     
-    //compute view ray
-    cl_uv(pixels, &cl_viewport, numPixels);
+    //compute uv
+    cl_float2 * uV = cl_uv(pixels, &cl_viewport, numPixels);
 //    vector2<double> uv = viewport_->uv(x, y); //not needed for OpenCL declaration
+    for (int i = 0; i < 10; ++i)
+    {
+        std::cout << "uv[" << i << "] = " << uV[i].s[0] << ", " <<  uV[i].s[1] << std::endl;
+    }
     
     //convert gfx::camera to a struct.
     cam cl_camera = convert_cam_Struct(*camera_);
     
-    cl_viewrays(cl_camera, pixels, numPixels);
-   // view_ray ray = projection_->compute_view_ray(*camera_, uv[0], uv[1]);
+   //  viewRay* rays = projection_->compute_view_ray(cl_camera, uV, numPixels);
     // if ray hits object then evaluate shading model
 //    std::unique_ptr<intersection> xsect = intersect(ray);
 //    if(xsect)
@@ -832,28 +832,17 @@ constexpr camera::camera(const vector3<double>& eye,
     v_ = w_.cross(u_);
 }
 
-vector2<double> viewport::uv(size_t x, size_t y) const noexcept {
+viewRay* orthographic_projection::compute_view_ray(cam& c,
+                                                   cl_float2 * uv, int numPixels) const noexcept {
     
-    vector2<double> uv;
-    uv[0] = left_ + ((right_ - left_) * (x + 0.5)) / x_resolution_;
-    uv[1] = bottom_ + ((top_ - bottom_) * (y + 0.5)) / y_resolution_;
-    return uv;
+    viewRay* rays = cl_ortho_viewrays(&c, uv, numPixels);
+    return rays;
 }
 
-view_ray orthographic_projection::compute_view_ray(const camera& c,
-                                                   double u,
-                                                   double v) const noexcept {
-    
-    gfx::vector3<double> origin = c.eye() + (c.u() * u) + (c.v() * v);
-    return view_ray(origin, -c.w());
-}
-
-view_ray perspective_projection::compute_view_ray(const camera& c,
-                                                  double u,
-                                                  double v) const noexcept {
-    
-    gfx::vector3<double> direction = -c.w() * focal_length_ + c.u() * u + c.v() * v;
-    return view_ray(c.eye(), direction);
+viewRay*  perspective_projection::compute_view_ray(cam& c,
+                                                  cl_float2 * uv, int numPixels) const noexcept {
+    viewRay* rays = cl_persp_viewrays(&c, uv, numPixels, static_cast<float>(focal_length_));
+    return rays;
 }
 
 hdr_rgb flat_shader::shade(const scene& scene,
