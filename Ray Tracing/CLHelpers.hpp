@@ -66,7 +66,7 @@ cl_float2* cl_uv(cl_float3 positions[], vp &viewport, int numPixels)
     cl::Kernel uv_kernel = cl::Kernel(program, "uv");
 
     // construct vectors
-    cl_float2 C[n];
+    cl_float2* C = new cl_float2[n];
 
     //put aside memory for buffer
     cl::Buffer buffer_A2(context, CL_MEM_READ_WRITE, sizeof(cl_float3)*numPixels);
@@ -91,7 +91,7 @@ cl_float2* cl_uv(cl_float3 positions[], vp &viewport, int numPixels)
     for (int i = 0; i < 10; ++i)
     {
         
-        std::cout << viewport.left << ", " << C[i].s[1] << std::endl;
+        std::cout << C[i].s[0] << ", " << C[i].s[1] << std::endl;
     }
     
     return C;

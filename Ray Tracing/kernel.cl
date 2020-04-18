@@ -86,8 +86,8 @@ typedef struct __attribute__((packed))_intersect
 __kernel void uv(__global float3* pos, __global vp * viewPort, __global float2* out)
 {
  const int i = get_global_id(0);
-    out[i].x = viewPort->right;
-    out[i].y = viewPort->top;
+    out[i].x = viewPort->left + ((viewPort->right - viewPort->left) * (pos[i].x + 0.5)) / viewPort->x_resolution;
+    out[i].y = viewPort->bottom + ((viewPort->top - viewPort->bottom) * (pos[i].y + 0.5)) / viewPort->y_resolution;
 }
 
 

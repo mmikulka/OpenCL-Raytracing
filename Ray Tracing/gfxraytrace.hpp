@@ -797,7 +797,6 @@ hdr_image scene::render() const noexcept {
     //compute uv
     cl_float2 * uV = cl_uv(pixels, cl_viewport, numPixels);
     
-    std::cout << "got here" << std::endl;
 //    vector2<double> uv = viewport_->uv(x, y); //not needed for OpenCL declaration
     for (int i = 0; i < 10; ++i)
     {
