@@ -163,13 +163,14 @@ public:
     //
     // If there is an intersection within that t range, return an optional that
     // contains that intersection object.
-    std::unique_ptr<intersection> intersect(const view_ray& ray) const noexcept;
+    _intersect * intersect(const viewRay* rays, int numRays) const noexcept;
     
     // Render the given scene and return the resulting image.
     hdr_image render() const noexcept;
     
     // Load a scene from a JSON file; throws scene_read_exception on error.
     static scene read_json(const std::string& path) noexcept(false);
+    
 };
 
 // An error encountered while trying to read and parse a scene file.
@@ -349,9 +350,10 @@ public:
     // Given a scene, camera, and particular ray-object intersection,
     // compute the color of the pixel corresponding to the view
     // ray. The pixel's color is returned.
-    virtual hdr_rgb shade(const scene& scene,
-                          const camera& camera,
-                          const intersection& xsect) const noexcept = 0;
+    virtual hdr_rgb* shade(const scene& scene,
+                          const cam& camera,
+                          const _intersect* xsect,
+                          int numIntersections) const noexcept = 0;
     
     virtual ~abstract_shader() noexcept = default;
 };
@@ -360,9 +362,10 @@ public:
 class flat_shader : public abstract_shader {
 public:
     
-    virtual hdr_rgb shade(const scene& scene,
-                          const camera& camera,
-                          const intersection& xsect) const noexcept;
+    virtual hdr_rgb* shade(const scene& scene,
+                          const cam& camera,
+                          const _intersect* xsect,
+                          int numIntersections) const noexcept;
 };
 
 // Blin-Phong implementation of abstract_shader.
@@ -419,9 +422,10 @@ public:
         return specular_coefficient_;
     }
     
-    virtual hdr_rgb shade(const scene& scene,
-                          const camera& camera,
-                          const intersection& xsect) const noexcept;
+    virtual hdr_rgb* shade(const scene& scene,
+                          const cam& camera,
+                          const _intersect* xsect,
+                          int numIntersections) const noexcept;
 };
 
 // A view ray represents a ray traveling from the viewer out into
@@ -484,9 +488,10 @@ public:
     //
     // If there is an intersection within that t range, return an optional that
     // contains that intersection object.
-    virtual std::unique_ptr<intersection> intersect(const view_ray& ray,
+    virtual std::unique_ptr<intersection> intersect(const viewRay * rays,
                                                     double t_min,
                                                     double t_upper_bound) const noexcept = 0;
+    virtual object convert_to_obj_struct() const noexcept = 0;
 };
 
 // A scene object that is a 3D sphere.
@@ -518,9 +523,10 @@ public:
         return radius_;
     }
     
-    virtual std::unique_ptr<intersection> intersect(const view_ray& ray,
+    virtual std::unique_ptr<intersection> intersect(const viewRay* rays,
                                                     double t_min,
                                                     double t_upper_bound) const noexcept;
+    virtual object convert_to_obj_struct() const noexcept;
 };
 
 class scene_triangle : public abstract_scene_object {
@@ -552,9 +558,10 @@ public:
         return c_;
     }
     
-    virtual std::unique_ptr<intersection> intersect(const view_ray& ray,
+    virtual std::unique_ptr<intersection> intersect(const viewRay* rays,
                                                     double t_min,
                                                     double t_upper_bound) const noexcept;
+    virtual object convert_to_obj_struct() const noexcept;
 };
 
 // A point_light represents a light source that gives off the same
@@ -591,6 +598,8 @@ public:
     constexpr double intensity() const noexcept {
         return intensity_;
     }
+    
+    light light_obj_to_struct() const noexcept;
 };
 
 // An intersection represents a place where a view ray hits a
@@ -606,43 +615,43 @@ public:
 // - the t value where the hit happened relative to the view ray
 //   direction, i.e.
 //       location == ray.origin + (t * ray.direction)
-class intersection {
-private:
-    const abstract_scene_object *object_; // non-owning pointer
-    vector3<double> location_, normal_;
-    double t_;
-    
-public:
-    
-    // Construct an intersection.
-    // The object pointer must not be nullptr.
-    // The normal must be normalized (magnitude 1).
-    constexpr intersection(const abstract_scene_object* object,
-                           const vector3<double>& location,
-                           const vector3<double>& normal,
-                           double t) noexcept
-    : object_(object),
-    location_(location),
-    normal_(normal),
-    t_(t) {
-        
-        assert(object != nullptr);
-        assert(approx_equal(normal.magnitude(), 1.0, .01));
-    }
-    
-    constexpr const abstract_scene_object& object() const noexcept {
-        return *object_;
-    }
-    constexpr const vector3<double>& location() const noexcept {
-        return location_;
-    }
-    constexpr const vector3<double>& normal() const noexcept {
-        return normal_;
-    }
-    constexpr double t() const noexcept {
-        return t_;
-    }
-};
+//class intersection {
+//private:
+//    const abstract_scene_object *object_; // non-owning pointer
+//    vector3<double> location_, normal_;
+//    double t_;
+//
+//public:
+//
+//    // Construct an intersection.
+//    // The object pointer must not be nullptr.
+//    // The normal must be normalized (magnitude 1).
+//    constexpr intersection(const abstract_scene_object* object,
+//                           const vector3<double>& location,
+//                           const vector3<double>& normal,
+//                           double t) noexcept
+//    : object_(object),
+//    location_(location),
+//    normal_(normal),
+//    t_(t) {
+//
+//        assert(object != nullptr);
+//        assert(approx_equal(normal.magnitude(), 1.0, .01));
+//    }
+//
+//    constexpr const abstract_scene_object& object() const noexcept {
+//        return *object_;
+//    }
+//    constexpr const vector3<double>& location() const noexcept {
+//        return location_;
+//    }
+//    constexpr const vector3<double>& normal() const noexcept {
+//        return normal_;
+//    }
+//    constexpr double t() const noexcept {
+//        return t_;
+//    }
+//};
 
 scene scene::read_json(const std::string& path) noexcept(false) {
     
@@ -741,29 +750,81 @@ vp convert_vp_Struct(viewport viewport_)
     return viewPort;
 }
 
-
-
-std::unique_ptr<intersection> scene::intersect (const view_ray& ray) const noexcept {
+object scene_triangle::convert_to_obj_struct() const noexcept
+{
+    triangle tri;
+    tri.color.r = color().r();
+    tri.color.g = color().g();
+    tri.color.b = color().b();
+    tri.shininess = static_cast<float>(shininess());
+    tri.a.s[0] = static_cast<float>(a_[0]);
+    tri.a.s[1] = static_cast<float>(a_[1]);
+    tri.a.s[2] = static_cast<float>(a_[2]);
+    tri.b.s[0] = static_cast<float>(b_[0]);
+    tri.b.s[1] = static_cast<float>(b_[1]);
+    tri.b.s[2] = static_cast<float>(b_[2]);
+    tri.c.s[0] = static_cast<float>(c_[0]);
+    tri.c.s[1] = static_cast<float>(c_[1]);
+    tri.c.s[2] = static_cast<float>(c_[2]);
     
-    std::unique_ptr<intersection> hit = nullptr;
+    object obj;
+    obj.triObj = tri;
+    obj.is_triangle = true;
+    obj.is_circle = false;
+    return obj;
+}
+
+object scene_sphere::convert_to_obj_struct() const noexcept
+{
+    circle circ;
+    circ.color.r = color().r();
+    circ.color.g = color().g();
+    circ.color.b = color().b();
+    circ.shininess = static_cast<float>(shininess());
+    circ.center.s[0] = static_cast<float>(center_[0]);
+    circ.center.s[1] = static_cast<float>(center_[1]);
+    circ.center.s[2] = static_cast<float>(center_[2]);
+    circ.radius = static_cast<float>(radius_);
+    
+    object obj;
+    obj.circleObj = circ;
+    obj.is_triangle = false;
+    obj.is_circle = true;
+    return obj;
+}
+
+light point_light::light_obj_to_struct() const noexcept
+{
+    _light light;
+    
+    light.location.s[0] = location_[0];
+    light.location.s[1] = location_[1];
+    light.location.s[2] = location_[2];
+    
+    light.color.r = color_.r();
+    light.color.g = color_.g();
+    light.color.b = color_.b();
+    
+    light.intensity = intensity_;
+    
+    return light;
+}
+
+_intersect* scene::intersect (const viewRay* rays, int numRays) const noexcept {
+    
     
     double tmin = 0;
     double tmax = std::numeric_limits<double>::infinity();
     
-    //loop through each object
-    for (size_t i = 0; i < objects_.size(); ++i)
-    {
-        std::unique_ptr<intersection> intersectObj = objects_[i]->intersect(ray, tmin, tmax);
-        //check to see if intersecting object exists and the tval is between min and max;
-        if(intersectObj && tmin < intersectObj->t() && tmax > intersectObj->t())
-        {
-            
-            hit = std::move(intersectObj);
-            //set tmax so every other obj intersection has to be closer than the curren object
-            tmax = hit->t();
-        }
-    }
-    return hit;
+    _intersect * xsects = new _intersect[numRays];
+    
+    size_t numObjects = objects_.size();
+    
+    object objects[numObjects];
+    
+    xsects = cl_intersect(objects, numObjects, rays, numRays, tmax, tmin);
+    
+    return xsects;
 }
 
 hdr_image scene::render() const noexcept {
@@ -786,39 +847,50 @@ hdr_image scene::render() const noexcept {
     int numPixels = h * w;
     cl_float3 pixels[h * w];
     
-    for (size_t y = 0; y < h; ++y) {
-        for (size_t x = 0; x < w; ++x) {
-            pixels[y * h + x] = {{y * 1.0f, x * 1.0f, 0.0f}};
-        }
+    for (size_t i = 0; i < numPixels; ++i) {
+        pixels[i] = {{static_cast<float>(i / w) + 1.0f, static_cast<float>(i % w) + 1.0f, 0.0f}};
     }
+//    std::cout << "pixel array breakdown" << std::endl;
+//    for (int i = 0; i < numPixels; ++i)
+//    {
+//       std::cout <<"pixel[" << i << "]: " << pixels[i].s[0] << ", " << pixels[i].s[1] << ", " << pixels[i].s[2] << std::endl;
+//    }
     
     
     vp cl_viewport = convert_vp_Struct(*viewport_);
     //compute uv
     cl_float2 * uV = cl_uv(pixels, cl_viewport, numPixels);
-    
-//    vector2<double> uv = viewport_->uv(x, y); //not needed for OpenCL declaration
-    for (int i = 0; i < 10; ++i)
-    {
-        std::cout << "uv[" << i << "] = " << uV[i].s[0] << ", " <<  uV[i].s[1] << std::endl;
-    }
+    //testing only
+//    std::cout << "uv array test" << std::endl;
+//    for (int i = 0; i < numPixels; ++i)
+//    {
+//        std::cout << "uv[" << i << "] = " << uV[i].s[0] << ", " <<  uV[i].s[1] << std::endl;
+//    }
     
     //convert gfx::camera to a struct.
-    //cam cl_camera = convert_cam_Struct(*camera_);
+    cam cl_camera = convert_cam_Struct(*camera_);
     
-   //  viewRay* rays = projection_->compute_view_ray(cl_camera, uV, numPixels);
+   viewRay* rays = projection_->compute_view_ray(cl_camera, uV, numPixels);
+    
+    //testing only
+//    std::cout << "ViewRays: " << std::endl;
+//        for (int i = 0; i < 20; ++i)
+//        {
+//            std::cout << rays[i].origin.s[0] << ", " << rays[i].origin.s[1] << ", " << rays[i].origin.s[2] << std::endl;
+//        }
     // if ray hits object then evaluate shading model
-//    std::unique_ptr<intersection> xsect = intersect(ray);
-//    if(xsect)
-//    {
-//        hdr_rgb color = shader_->shade(*this, *camera_, *xsect);
-//        result.pixel(x, y, color);
-//    }
-//    else
-//    {
-//        //set pixel color to background
-//        result.pixel(x, y, background_);
-//    }
+    _intersect* xsects = intersect(rays, numPixels);
+    
+    //shade each pixel
+    hdr_rgb* colors;
+    colors = shader_->shade(*this, cl_camera, xsects, numPixels);
+    
+    //transfer colors to hdr_image variable.
+    for (int i = 0; i < numPixels; ++i)
+    {
+        result.pixel(i / w, i % w, colors[i]);
+    }
+    
     return result;
 }
 
@@ -836,73 +908,102 @@ constexpr camera::camera(const vector3<double>& eye,
 viewRay* orthographic_projection::compute_view_ray(cam& c,
                                                    cl_float2 * uv, int numPixels) const noexcept {
     
-    viewRay* rays; //cl_ortho_viewrays(&c, uv, numPixels);
+    viewRay* rays = cl_ortho_viewrays(c, uv, numPixels);
+    
+//    std::cout << "ViewRays: " << std::endl;
+//    for (int i = 0; i < numPixels; ++i)
+//    {
+//        std::cout << rays[i].origin.s[0] << ", " << rays[i].origin.s[1] << ", " << rays[i].origin.s[2] << std::endl;
+//    }
     return rays;
 }
 
 viewRay*  perspective_projection::compute_view_ray(cam& c,
                                                   cl_float2 * uv, int numPixels) const noexcept {
-    viewRay* rays; //cl_persp_viewrays(&c, uv, numPixels, static_cast<float>(focal_length_));
+    viewRay* rays;// = cl_persp_viewrays(&c, uv, numPixels, static_cast<float>(focal_length_));
     return rays;
 }
 
-hdr_rgb flat_shader::shade(const scene& scene,
-                           const camera& camera,
-                           const intersection& xsect) const noexcept {
+hdr_rgb* flat_shader::shade(const scene& scene,
+                           const cam& camera,
+                           const _intersect* xsect, int numIntersections) const noexcept {
     
-    return xsect.object().color();
+    rgbColor background;
+    background.r = scene.background().r();
+    background.g = scene.background().g();
+    background.b = scene.background().b();
+    
+    rgbColor* color = cl_flat_shader(xsect, numIntersections, background);
+//    for (int i = 0; i < 20; ++i)
+//    {
+//        std::cout << "color[" << i << "]: r: " << color[i].r << ", g: " << color[i].g << ", b: " << color[i].b << std::endl;
+//    }
+    hdr_rgb* hdrColors = new hdr_rgb[numIntersections];
+    for (int i = 0; i < numIntersections; ++i)
+    {
+        hdrColors[i] = hdr_rgb(color[i].r, color[i].g, color[i].b);
+    }
+//    std::cout << "HDR Colors" << std::endl;
+//    for (int i = 0; i < numIntersections; ++i)
+//    {
+//        std::cout << "color[" << i << "]: r: " << hdrColors[i].r() << ", g: " << hdrColors[i].g() << ", b: " << hdrColors[i].b() << std::endl;
+//    }
+    
+    return hdrColors;
 }
 
-hdr_rgb blinn_phong_shader::shade(const scene& scene,
-                                  const camera& camera,
-                                  const intersection& xsect) const noexcept {
+hdr_rgb* blinn_phong_shader::shade(const scene& scene,
+                                  const cam& camera,
+                                  const _intersect* xsect, int numIntersections) const noexcept {
     
     //create a vector for intensity of each color and add in the ambient color for each object.
-    vector3<double> color;
-    color[0] = (ambient_coefficient_ * ambient_color_.r());
-    color[1] = (ambient_coefficient_ * ambient_color_.g());
-    color[2] = (ambient_coefficient_ * ambient_color_.b());
-    
-    
-    for (size_t i = 0; i < scene.lights().size(); ++i)
-    {
-        //compute light vector from object.
-        vector3<double> lightDirection = (scene.lights()[i]->location() - xsect.location()).normalized();
-        vector3<double> viewDirection = (camera.eye() - xsect.location()).normalized();
-        //computre bisector
-        vector3<double> bisector = (viewDirection + lightDirection).normalized();
-        //compute normal dot light location and choose either that or 0
-        double ndl = xsect.normal() * lightDirection;
-        if (ndl < 0) ndl = 0;
-        // add diffuse light output to intensity of pixel.
-        color[0] += xsect.object().color().r() * diffuse_coefficient_ * ndl;
-        color[1] += xsect.object().color().g() * diffuse_coefficient_ * ndl;
-        color[2] += xsect.object().color().b() * diffuse_coefficient_ * ndl;
-        // compute normal and bisector and choose 0 or that.
-        double ndh =  bisector * xsect.normal();
-        if (ndh < 0) ndh = 0;
-        // raise ndh to phong exponent
-        ndh = pow(ndh, xsect.object().shininess());
-        //add specular coefficient to intensity of pixel
-        color[0] += specular_coefficient_ * ndh * scene.lights()[i]->color().r();
-        color[1] += specular_coefficient_ * ndh * scene.lights()[i]->color().g();
-        color[2] += specular_coefficient_ * ndh * scene.lights()[i]->color().b();
-    }
-    //loop though each color and make sure it is not less than 0 or greatre than 1
-    for (int i = 0; i < 3; ++i)
-    {
-        color[i] = (color[i] < 0)? 0 : color[i];
-        color[i] = (color[i] > 1)? 1 : color[i];
-    }
-    //return color value
-    return hdr_rgb(color[0], color[1], color[2]);
+//    vector3<double> color;
+//    color[0] = (ambient_coefficient_ * ambient_color_.r());
+//    color[1] = (ambient_coefficient_ * ambient_color_.g());
+//    color[2] = (ambient_coefficient_ * ambient_color_.b());
+//
+//
+//    for (size_t i = 0; i < scene.lights().size(); ++i)
+//    {
+//        //compute light vector from object.
+//        vector3<double> lightDirection = (scene.lights()[i]->location() - xsect.location()).normalized();
+//        vector3<double> viewDirection = (camera.eye() - xsect.location()).normalized();
+//        //computre bisector
+//        vector3<double> bisector = (viewDirection + lightDirection).normalized();
+//        //compute normal dot light location and choose either that or 0
+//        double ndl = xsect.normal() * lightDirection;
+//        if (ndl < 0) ndl = 0;
+//        // add diffuse light output to intensity of pixel.
+//        color[0] += xsect.object().color().r() * diffuse_coefficient_ * ndl;
+//        color[1] += xsect.object().color().g() * diffuse_coefficient_ * ndl;
+//        color[2] += xsect.object().color().b() * diffuse_coefficient_ * ndl;
+//        // compute normal and bisector and choose 0 or that.
+//        double ndh =  bisector * xsect.normal();
+//        if (ndh < 0) ndh = 0;
+//        // raise ndh to phong exponent
+//        ndh = pow(ndh, xsect.object().shininess());
+//        //add specular coefficient to intensity of pixel
+//        color[0] += specular_coefficient_ * ndh * scene.lights()[i]->color().r();
+//        color[1] += specular_coefficient_ * ndh * scene.lights()[i]->color().g();
+//        color[2] += specular_coefficient_ * ndh * scene.lights()[i]->color().b();
+//    }
+//    //loop though each color and make sure it is not less than 0 or greatre than 1
+//    for (int i = 0; i < 3; ++i)
+//    {
+//        color[i] = (color[i] < 0)? 0 : color[i];
+//        color[i] = (color[i] > 1)? 1 : color[i];
+//    }
+//    //return color value
+//    return hdr_rgb(color[0], color[1], color[2]);
+    hdr_rgb * result;
+    return result;
 }
 
-std::unique_ptr<intersection> scene_sphere::intersect(const view_ray& ray,
+std::unique_ptr<intersection> scene_sphere::intersect(const viewRay* ray,
                                                       double t_min,
                                                       double t_upper_bound) const noexcept
 {
-    
+    /*
     //setup variables for quadratic equation
     double a = ray.direction() * ray.direction();
     double b = ray.direction() * (ray.origin() - center_);
@@ -942,11 +1043,14 @@ std::unique_ptr<intersection> scene_sphere::intersect(const view_ray& ray,
             else return nullptr;
         }
     }
+     */
+    return nullptr;
+    
 }
 
 
-std::unique_ptr<intersection> scene_triangle::intersect( const view_ray& ray, double t_min, double t_upper_bound) const noexcept {
-    
+std::unique_ptr<intersection> scene_triangle::intersect( const viewRay * ray, double t_min, double t_upper_bound) const noexcept {
+    /*
     assert(t_min < t_upper_bound);
     
     //setup the matrix and vector for the system of equations.
@@ -969,7 +1073,8 @@ std::unique_ptr<intersection> scene_triangle::intersect( const view_ray& ray, do
     {  return nullptr;}
     //ray hits the triangle, so calculate intersection, return the intersection object.
     vector3<double> intersect = ray.origin() + ray.direction() * linearSolution[2];
-    return std::make_unique<intersection>(this, intersect, (a_-b_).cross(a_-c_).normalized(), linearSolution[2]);
+    return std::make_unique<intersection>(this, intersect, (a_-b_).cross(a_-c_).normalized(), linearSolution[2]);*/
+    return nullptr;
 }
 
 }

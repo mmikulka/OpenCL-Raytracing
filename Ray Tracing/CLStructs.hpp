@@ -81,10 +81,17 @@ typedef struct __attribute__((packed))_circle
     float radius;
 }circle;
 
+typedef struct __attribute__((packed))_object
+{
+    triangle triObj;
+    circle circleObj;
+    bool is_triangle;
+    bool is_circle;
+}object;
+
 typedef struct __attribute__((packed))_intersect
 {
-    triangle *triangle_obj;
-    circle *circle_obj;
+    object obj;
     cl_float3 location;
     cl_float3 normal;
     float t_;
