@@ -230,6 +230,8 @@ public:
     constexpr const vector3<double>& w() const noexcept {
         return w_;
     }
+    
+    cam to_struct() const noexcept;
 };
 
 // A viewport defines the boundary of the viewing window. It stores
@@ -294,6 +296,8 @@ public:
     // Map an (x, y) screen coordinate to a (u, v) coordinate in
     // [0, 1]^2. Return a 2D vector x, with u in x[0] and v in x[1];
     vector2<double> uv(size_t x, size_t y) const noexcept;
+    
+    vp to_struct()const noexcept;
 };
 
 // Abstract class defining a projection algorithm.
@@ -426,6 +430,8 @@ public:
                           const cam& camera,
                           const _intersect* xsect,
                           int numIntersections) const noexcept;
+    
+    phong to_struct() const noexcept;
 };
 
 // A view ray represents a ray traveling from the viewer out into
@@ -491,7 +497,7 @@ public:
     virtual std::unique_ptr<intersection> intersect(const viewRay * rays,
                                                     double t_min,
                                                     double t_upper_bound) const noexcept = 0;
-    virtual object convert_to_obj_struct() const noexcept = 0;
+    virtual object to_struct() const noexcept = 0;
 };
 
 // A scene object that is a 3D sphere.
@@ -526,7 +532,7 @@ public:
     virtual std::unique_ptr<intersection> intersect(const viewRay* rays,
                                                     double t_min,
                                                     double t_upper_bound) const noexcept;
-    virtual object convert_to_obj_struct() const noexcept;
+    virtual object to_struct() const noexcept;
 };
 
 class scene_triangle : public abstract_scene_object {
@@ -561,7 +567,7 @@ public:
     virtual std::unique_ptr<intersection> intersect(const viewRay* rays,
                                                     double t_min,
                                                     double t_upper_bound) const noexcept;
-    virtual object convert_to_obj_struct() const noexcept;
+    virtual object to_struct() const noexcept;
 };
 
 // A point_light represents a light source that gives off the same
@@ -599,7 +605,7 @@ public:
         return intensity_;
     }
     
-    light light_obj_to_struct() const noexcept;
+    light to_struct() const noexcept;
 };
 
 // An intersection represents a place where a view ray hits a
@@ -735,22 +741,22 @@ scene scene::read_json(const std::string& path) noexcept(false) {
 
 //conversion functions to clean up rest of code
 
-cam convert_cam_Struct(camera camera_)
+cam camera::to_struct() const noexcept
 {
-    cam cl_camera = {{{static_cast<float>(camera_.eye()[0]), static_cast<float>(camera_.eye()[1]), static_cast<float>(camera_.eye()[2])}},
-        {{static_cast<float>(camera_.u()[0]), static_cast<float>(camera_.u()[1]), static_cast<float>(camera_.u()[2])}},
-        {{static_cast<float>(camera_.v()[0]), static_cast<float>(camera_.v()[1]), static_cast<float>(camera_.v()[2])}},
-        {{static_cast<float>(camera_.w()[0]), static_cast<float>(camera_.w()[1]), static_cast<float>(camera_.w()[2])}}};
+    cam cl_camera = {{{static_cast<float>(eye_[0]), static_cast<float>(eye_[1]), static_cast<float>(eye_[2])}},
+        {{static_cast<float>(u_[0]), static_cast<float>(u_[1]), static_cast<float>(u_[2])}},
+        {{static_cast<float>(v_[0]), static_cast<float>(v_[1]), static_cast<float>(v_[2])}},
+        {{static_cast<float>(w_[0]), static_cast<float>(w_[1]), static_cast<float>(w_[2])}}};
     return cl_camera;
 }
 
-vp convert_vp_Struct(viewport viewport_)
+vp viewport::to_struct() const noexcept
 {
-    vp viewPort = {static_cast<float>(viewport_.x_resolution()), static_cast<float>(viewport_.y_resolution()), static_cast<float>(viewport_.left()), static_cast<float>(viewport_.right()), static_cast<float>(viewport_.top()), static_cast<float>(viewport_.bottom())};
+    vp viewPort = {static_cast<float>(x_resolution()), static_cast<float>(y_resolution()), static_cast<float>(left()), static_cast<float>(right()), static_cast<float>(top()), static_cast<float>(bottom())};
     return viewPort;
 }
 
-object scene_triangle::convert_to_obj_struct() const noexcept
+object scene_triangle::to_struct() const noexcept
 {
     object tri;
     tri.triObj.color.r = color().r();
@@ -772,7 +778,7 @@ object scene_triangle::convert_to_obj_struct() const noexcept
     return tri;
 }
 
-object scene_sphere::convert_to_obj_struct() const noexcept
+object scene_sphere::to_struct() const noexcept
 {
     object circle;
     circle.circleObj.color.r = color().r();
@@ -789,7 +795,7 @@ object scene_sphere::convert_to_obj_struct() const noexcept
     return circle;
 }
 
-light point_light::light_obj_to_struct() const noexcept
+light point_light::to_struct() const noexcept
 {
     _light light;
     
@@ -806,9 +812,20 @@ light point_light::light_obj_to_struct() const noexcept
     return light;
 }
 
-_intersect* scene::intersect (const viewRay* rays, int numRays) const noexcept {
+phong blinn_phong_shader::to_struct() const noexcept
+{
+    phong shaderInfo;
+    shaderInfo.ambient_coef = ambient_coefficient_;
+    shaderInfo.diffuse_coef = diffuse_coefficient_;
+    shaderInfo.specular_coef = specular_coefficient_;
+    shaderInfo.ambient_color.r = ambient_color_.r();
+    shaderInfo.ambient_color.g = ambient_color_.g();
+    shaderInfo.ambient_color.b = ambient_color_.b();
+    return shaderInfo;
+}
     
-    
+_intersect* scene::intersect (const viewRay* rays, int numRays) const noexcept
+    {
     float tmin = 0;
     float tmax = std::numeric_limits<float>::max();
     
@@ -820,7 +837,7 @@ _intersect* scene::intersect (const viewRay* rays, int numRays) const noexcept {
     
     for (int i = 0; i < numObjects; ++i)
     {
-        objects[i] = objects_[i]->convert_to_obj_struct();
+        objects[i] = objects_[i]->to_struct();
 //        std::cout << "Object " << i << " is_circ: " << objects[i].is_circle << std::endl;
     }
     xsects = cl_intersect(objects, numObjects, rays, numRays, tmax, tmin);
@@ -858,7 +875,7 @@ hdr_image scene::render() const noexcept {
 //    }
     
     
-    vp cl_viewport = convert_vp_Struct(*viewport_);
+    vp cl_viewport = viewport_->to_struct();
     //compute uv
     cl_float2 * uV = cl_uv(pixels, cl_viewport, numPixels);
     //testing only
@@ -869,7 +886,7 @@ hdr_image scene::render() const noexcept {
 //    }
     
     //convert gfx::camera to a struct.
-    cam cl_camera = convert_cam_Struct(*camera_);
+    cam cl_camera = camera_->to_struct();
     
    viewRay* rays = projection_->compute_view_ray(cl_camera, uV, numPixels);
     
@@ -915,7 +932,7 @@ viewRay* orthographic_projection::compute_view_ray(cam& c,
 
 viewRay*  perspective_projection::compute_view_ray(cam& c,
                                                   cl_float2 * uv, int numPixels) const noexcept {
-    viewRay* rays;// = cl_persp_viewrays(&c, uv, numPixels, static_cast<float>(focal_length_));
+    viewRay* rays = cl_persp_viewrays(c, uv, numPixels, static_cast<float>(focal_length_));
     return rays;
 }
 
@@ -951,6 +968,21 @@ hdr_rgb* blinn_phong_shader::shade(const scene& scene,
                                   const cam& camera,
                                   const _intersect* xsect, int numIntersections) const noexcept {
     
+    //convert light objects to struct form
+    const int numLights = scene.lights().size();
+    light lights[numLights];
+    for(int i = 0; i < numLights; ++i)
+    {
+        lights[i] = scene.lights()[i]->to_struct();
+    }
+    phong phongInfo = to_struct();
+    
+    rgbColor background;
+    background.r = scene.background().r();
+    background.g = scene.background().g();
+    background.b = scene.background().b();
+    
+    rgbColor* color = cl_phong_shader(xsect, phongInfo, numIntersections, background, camera, lights, numLights);
     //create a vector for intensity of each color and add in the ambient color for each object.
 //    vector3<double> color;
 //    color[0] = (ambient_coefficient_ * ambient_color_.r());
@@ -990,8 +1022,12 @@ hdr_rgb* blinn_phong_shader::shade(const scene& scene,
 //    }
 //    //return color value
 //    return hdr_rgb(color[0], color[1], color[2]);
-    hdr_rgb * result;
-    return result;
+    hdr_rgb* hdrColors = new hdr_rgb[numIntersections];
+    for (int i = 0; i < numIntersections; ++i)
+    {
+        hdrColors[i] = hdr_rgb(color[i].r, color[i].g, color[i].b);
+    }
+    return hdrColors;
 }
 
 std::unique_ptr<intersection> scene_sphere::intersect(const viewRay* ray,
