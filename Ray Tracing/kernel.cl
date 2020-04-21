@@ -16,6 +16,7 @@ typedef struct __attribute__((packed))_rgbColor
     float r;
     float g;
     float b;
+    float a;
 }rgbColor;
 
 typedef struct __attribute__((packed))_light
@@ -23,7 +24,11 @@ typedef struct __attribute__((packed))_light
     float3 location;
     rgbColor color;
     float intensity;
-}lght;
+    //extra dummy vars to make sure size of struct is multiple of float4
+    float dummy1;
+    float dummy2;
+    float dummy3;
+}light;
 
 typedef struct __attribute__((packed))__cam
 {
@@ -41,6 +46,9 @@ typedef struct __attribute__((packed))_vp
     float right;
     float top;
     float bottom;
+    //extra dummy vars to make sure size of struct is multiple of float4
+    float dummy1;
+    float dummy2;
 }vp;
 
 typedef struct __attribute__((packed))_viewRay
@@ -55,6 +63,8 @@ typedef struct __attribute__((packed))_phong
     float diffuse_coef;
     float specular_coef;
     rgbColor ambient_color;
+    //extra dummy vars to make sure size of struct is multiple of float4
+    float dummy;
 }phong;
 
 typedef struct __attribute__((packed))_triangle
@@ -64,6 +74,10 @@ typedef struct __attribute__((packed))_triangle
     float3 a;
     float3 b;
     float3 c;
+    //extra dummy vars to make sure size of struct is multiple of float4
+    float dummy1;
+    float dummy2;
+    float dummy3;
 }triangle;
 
 typedef struct __attribute__((packed))_circle
@@ -72,6 +86,9 @@ typedef struct __attribute__((packed))_circle
     float shininess;
     float3 center;
     float radius;
+    //extra dummy vars to make sure size of struct is multiple of float4
+    float dummy1;
+    float dummy2;
 }circle;
 
 typedef struct __attribute__((packed))_object
@@ -80,6 +97,12 @@ typedef struct __attribute__((packed))_object
     circle circleObj;
     bool is_triangle;
     bool is_circle;
+    //extra dummy vars to make sure size of struct is multiple of float4
+    bool dummy1;
+    bool dummy2;
+    float dummy3;
+    float dummy4;
+    float dummy5;
 }object;
 
 typedef struct __attribute__((packed))_intersect
@@ -89,6 +112,12 @@ typedef struct __attribute__((packed))_intersect
     float3 normal;
     bool intersects;
     float t_;
+    //extra dummy vars to make sure size of struct is multiple of float4
+    bool dummy1;
+    bool dummy2;
+    bool dummy3;
+    float dummy4;
+    float dummy5;
 }intersect;
 
 __kernel void uv(__global float3* pos, __global vp * viewPort, __global float2* out)
@@ -154,7 +183,7 @@ static float3 solve(float3 system1, float3 system2, float3 system3, float3 solut
     return linear_solution;
 }
 
-static intersect tri_intersect(object triangle, viewRay ray, float t_upper_bound, float t_lower_bound)
+static intersect tri_intersect(triangle triangle, viewRay ray, float t_upper_bound, float t_lower_bound)
 {
     intersect intersection;
     intersection.t_ = -1;
@@ -256,7 +285,7 @@ static intersect circle_intersect(circle circ, viewRay ray, float t_upper_bound,
     }
 }
 
-__kernel void intersections(__global object* objects, int numObjects, __global viewRay* rays, __global intersect* intersections, float t_upper_bound, float t_lower_bound, __global float3* debug)
+__kernel void intersections(__global object* objects, int numObjects, __global viewRay* rays, __global intersect* intersections, float t_upper_bound, float t_lower_bound, __global float* debug)
 {
     float temp_max = t_upper_bound;
     intersect closest;
@@ -266,7 +295,7 @@ __kernel void intersections(__global object* objects, int numObjects, __global v
     closest.obj.is_circle = false;
     const int i = get_global_id(0);
     
-    for (int j = 0; j < 1; ++j)
+    for (int j = 0; j < numObjects; ++j)
     {
         if (objects[j].is_triangle)
         {
@@ -280,8 +309,8 @@ __kernel void intersections(__global object* objects, int numObjects, __global v
         }
         else
         {
-            circle temp_circle = objects[i].circleObj;
-            intersect temp = circle_intersect(temp_circle, rays[i], temp_max, t_lower_bound);
+            intersect temp = circle_intersect(objects[j].circleObj, rays[i], temp_max, t_lower_bound);
+            debug[i] = j;
            
             if (temp.intersects && temp.t_ > t_lower_bound && temp.t_ < temp_max)
             {

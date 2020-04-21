@@ -203,18 +203,18 @@ viewRay* cl_ortho_viewrays(cam& camera, cl_float2 * uV, int numPixels)
 
 intersect* cl_intersect (object * objects, int numObjects, const viewRay* rays, int numRays, float t_upper_bound, float t_lower_bound)
 {
-    typedef cl_float3 bug;
+    typedef float bug;
 //    std::cout << "t-lower-bounds: " << t_lower_bound << std::endl;
     //setup and get platforms of computer
     
-    for (int i = 0; i < numObjects; ++i)
-    {
-        std::cout << "Object " << i << ": circle? " << objects[i].is_circle;
-        
-        if (objects[i].is_circle)
-        {
-            std::cout << "\tCircle: Center: " << objects[i].circleObj.center.s[0] << ", " << objects[i].circleObj.center.s[1] << ", " << objects[i].circleObj.center.s[2] << "\tRadius: " << objects[i].circleObj.radius << std::endl;
-        }
+//    for (int i = 0; i < numObjects; ++i)
+//    {
+//        std::cout << "Object " << i << ": circle? " << objects[i].is_circle;
+//        
+//        if (objects[i].is_circle)
+//        {
+//            std::cout << "\tCircle: Center: " << objects[i].circleObj.center.s[0] << ", " << objects[i].circleObj.center.s[1] << ", " << objects[i].circleObj.center.s[2] << "\tRadius: " << objects[i].circleObj.radius << std::endl;
+//        }
 //        if (objects[i].is_triangle)
 //        {
 //            std::cout << "\tTriangle: a: " << objects[i].triObj.a.s[0] << ", " <<objects[i].triObj.a.s[1] << ", " << objects[i].triObj.a.s[2] << "\tb: " << objects[i].triObj.b.s[0] << ", " <<objects[i].triObj.b.s[1] << ", " <<objects[i].triObj.b.s[2] << "\tc: " << objects[i].triObj.c.s[0] << ", " << objects[i].triObj.c.s[1] << ", " << objects[i].triObj.c.s[2] << std::endl;
@@ -305,14 +305,14 @@ intersect* cl_intersect (object * objects, int numObjects, const viewRay* rays, 
     delete[]kernel_code;
     
 //
-    std::cout << "intersection T val" << std::endl;
-    for (int i = 0; i < numRays; ++i)
-    {
-//        std::cout << "i = " << i << "\t"; //<<debug[i] << std::endl;
-//        printfloat3(C[i].obj.circleObj.center);
-//        if (C[i].t_ > 0)
-        std::cout << "i: " << i << "\tt-val: " <<  C[i].t_ << std::endl;
-    }
+//    std::cout << "intersection T val" << std::endl;
+//    for (int i = 0; i < numRays; ++i)
+//    {
+//        std::cout << "i = " << i << "\t" <<debug[i] << std::endl;
+////        printfloat3(C[i].obj.circleObj.center);
+////        if (C[i].t_ > 0)
+////        std::cout << "i: " << i << "\tt-val: " <<  C[i].t_ << std::endl;
+//    }
 //
     return C;
 }

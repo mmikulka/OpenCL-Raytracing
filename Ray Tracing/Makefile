@@ -28,7 +28,7 @@ fast: scene_gtri_ortho_flat.png \
 
 slow: teatime.png
 
-test:  scene_2spheres_ortho_flat.png 
+test: scene_2spheres_ortho_flat.png
 
 /usr/local/Cellar/png++/0.2.10/include/png++/png.hpp:
 	@echo -e "libpng++ library not installed\n"

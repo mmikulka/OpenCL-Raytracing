@@ -23,6 +23,7 @@ typedef struct __attribute__((packed))_rgbColor
     float r;
     float g;
     float b;
+    float a;
 }rgbColor;
 
 typedef struct __attribute__((packed))_light
@@ -30,6 +31,10 @@ typedef struct __attribute__((packed))_light
     cl_float3 location;
     rgbColor color;
     float intensity;
+    //extra dummy vars to make sure size of struct is multiple of float4
+    float dummy1;
+    float dummy2;
+    float dummy3;
 }light;
 
 typedef struct __attribute__((packed))__cam
@@ -48,6 +53,9 @@ typedef struct __attribute__((packed))_vp
     float right;
     float top;
     float bottom;
+    //extra dummy vars to make sure size of struct is multiple of float4
+    float dummy1;
+    float dummy2;
 }vp;
 
 typedef struct __attribute__((packed))_viewRay
@@ -62,36 +70,59 @@ typedef struct __attribute__((packed))_phong
     float diffuse_coef;
     float specular_coef;
     rgbColor ambient_color;
+    //extra dummy vars to make sure size of struct is multiple of float4
+    float dummy;
 }phong;
 
+typedef struct __attribute__((packed))_triangle
+{
+    rgbColor color;
+    float shininess;
+    cl_float3 a;
+    cl_float3 b;
+    cl_float3 c;
+    //extra dummy vars to make sure size of struct is multiple of float4
+    float dummy1;
+    float dummy2;
+    float dummy3;
+}triangle;
 
-typedef struct __attribute__((packed))_object
+typedef struct __attribute__((packed))_circle
 {
     rgbColor color;
     float shininess;
     cl_float3 center;
     float radius;
-    cl_float3 a;
-    cl_float3 b;
-    cl_float3 c;
+    //extra dummy vars to make sure size of struct is multiple of float4
+    float dummy1;
+    float dummy2;
+}circle;
+
+typedef struct __attribute__((packed))_object
+{
+    triangle triObj;
+    circle circleObj;
     bool is_triangle;
     bool is_circle;
+    //extra dummy vars to make sure size of struct is multiple of float4
+    bool dummy1;
+    bool dummy2;
+    float dummy3;
+    float dummy4;
+    float dummy5;
 }object;
 
 typedef struct __attribute__((packed))_intersect
 {
-    rgbColor color;
-    float shininess;
-    cl_float3 center;
-    float radius;
-    cl_float3 a;
-    cl_float3 b;
-    cl_float3 c;
-    bool is_triangle;
-    bool is_circle;
-
+    object obj;
     cl_float3 location;
     cl_float3 normal;
     bool intersects;
     float t_;
+    //extra dummy vars to make sure size of struct is multiple of float4
+    bool dummy1;
+    bool dummy2;
+    bool dummy3;
+    float dummy4;
+    float dummy5;
 }intersect;

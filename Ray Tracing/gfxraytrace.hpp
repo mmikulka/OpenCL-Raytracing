@@ -753,19 +753,19 @@ vp convert_vp_Struct(viewport viewport_)
 object scene_triangle::convert_to_obj_struct() const noexcept
 {
     object tri;
-    tri.color.r = color().r();
-    tri.color.g = color().g();
-    tri.color.b = color().b();
-    tri.shininess = static_cast<float>(shininess());
-    tri.a.s[0] = static_cast<float>(a_[0]);
-    tri.a.s[1] = static_cast<float>(a_[1]);
-    tri.a.s[2] = static_cast<float>(a_[2]);
-    tri.b.s[0] = static_cast<float>(b_[0]);
-    tri.b.s[1] = static_cast<float>(b_[1]);
-    tri.b.s[2] = static_cast<float>(b_[2]);
-    tri.c.s[0] = static_cast<float>(c_[0]);
-    tri.c.s[1] = static_cast<float>(c_[1]);
-    tri.c.s[2] = static_cast<float>(c_[2]);
+    tri.triObj.color.r = color().r();
+    tri.triObj.color.g = color().g();
+    tri.triObj.color.b = color().b();
+    tri.triObj.shininess = static_cast<float>(shininess());
+    tri.triObj.a.s[0] = static_cast<float>(a_[0]);
+    tri.triObj.a.s[1] = static_cast<float>(a_[1]);
+    tri.triObj.a.s[2] = static_cast<float>(a_[2]);
+    tri.triObj.b.s[0] = static_cast<float>(b_[0]);
+    tri.triObj.b.s[1] = static_cast<float>(b_[1]);
+    tri.triObj.b.s[2] = static_cast<float>(b_[2]);
+    tri.triObj.c.s[0] = static_cast<float>(c_[0]);
+    tri.triObj.c.s[1] = static_cast<float>(c_[1]);
+    tri.triObj.c.s[2] = static_cast<float>(c_[2]);
     
     tri.is_triangle = true;
     tri.is_circle = false;
@@ -775,14 +775,14 @@ object scene_triangle::convert_to_obj_struct() const noexcept
 object scene_sphere::convert_to_obj_struct() const noexcept
 {
     object circle;
-    circle.color.r = color().r();
-    circle.color.g = color().g();
-    circle.color.b = color().b();
-    circle.shininess = static_cast<float>(shininess());
-    circle.center.s[0] = static_cast<float>(center_[0]);
-    circle.center.s[1] = static_cast<float>(center_[1]);
-    circle.center.s[2] = static_cast<float>(center_[2]);
-    circle.radius = static_cast<float>(radius_);
+    circle.circleObj.color.r = color().r();
+    circle.circleObj.color.g = color().g();
+    circle.circleObj.color.b = color().b();
+    circle.circleObj.shininess = static_cast<float>(shininess());
+    circle.circleObj.center.s[0] = static_cast<float>(center_[0]);
+    circle.circleObj.center.s[1] = static_cast<float>(center_[1]);
+    circle.circleObj.center.s[2] = static_cast<float>(center_[2]);
+    circle.circleObj.radius = static_cast<float>(radius_);
     
     circle.is_triangle = false;
     circle.is_circle = true;
@@ -823,7 +823,6 @@ _intersect* scene::intersect (const viewRay* rays, int numRays) const noexcept {
         objects[i] = objects_[i]->convert_to_obj_struct();
 //        std::cout << "Object " << i << " is_circ: " << objects[i].is_circle << std::endl;
     }
-    
     xsects = cl_intersect(objects, numObjects, rays, numRays, tmax, tmin);
     
     return xsects;
@@ -874,12 +873,6 @@ hdr_image scene::render() const noexcept {
     
    viewRay* rays = projection_->compute_view_ray(cl_camera, uV, numPixels);
     
-    //testing only
-    std::cout << "ViewRays: " << std::endl;
-//        for (int i = 0; i < 20; ++i)
-//        {
-//            std::cout << rays[i].direction.s[0] << ", " << rays[i].direction.s[1] << ", " << rays[i].direction.s[2] << std::endl;
-//        }
     // if ray hits object then evaluate shading model
     _intersect* xsects = intersect(rays, numPixels);
     
