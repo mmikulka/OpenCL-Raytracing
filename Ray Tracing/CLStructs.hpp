@@ -64,35 +64,34 @@ typedef struct __attribute__((packed))_phong
     rgbColor ambient_color;
 }phong;
 
-typedef struct __attribute__((packed))_triangle
-{
-    rgbColor color;
-    float shininess;
-    cl_float3 a;
-    cl_float3 b;
-    cl_float3 c;
-}triangle;
 
-typedef struct __attribute__((packed))_circle
+typedef struct __attribute__((packed))_object
 {
     rgbColor color;
     float shininess;
     cl_float3 center;
     float radius;
-}circle;
-
-typedef struct __attribute__((packed))_object
-{
-    triangle triObj;
-    circle circleObj;
+    cl_float3 a;
+    cl_float3 b;
+    cl_float3 c;
     bool is_triangle;
     bool is_circle;
 }object;
 
 typedef struct __attribute__((packed))_intersect
 {
-    object obj;
+    rgbColor color;
+    float shininess;
+    cl_float3 center;
+    float radius;
+    cl_float3 a;
+    cl_float3 b;
+    cl_float3 c;
+    bool is_triangle;
+    bool is_circle;
+
     cl_float3 location;
     cl_float3 normal;
+    bool intersects;
     float t_;
 }intersect;

@@ -87,6 +87,7 @@ typedef struct __attribute__((packed))_intersect
     object obj;
     float3 location;
     float3 normal;
+    bool intersects;
     float t_;
 }intersect;
 
@@ -97,14 +98,14 @@ __kernel void uv(__global float3* pos, __global vp * viewPort, __global float2* 
     out[i].y = viewPort->bottom + ((viewPort->top - viewPort->bottom) * (pos[i].y + 0.5)) / viewPort->y_resolution;
 }
 
-__kernel void ortho_viewrays (__global cam* c, __global float2* uv, __global viewRay * rays)
+__kernel void ortho_viewrays(cam c, __global float2* uv, __global viewRay * rays)
 {
     const int i = get_global_id(0);
-    rays[i].origin = c->eye;
-    rays[i].origin.x = (c->u.x * uv[i].x) + (c->v.x * uv[i].y);
-    rays[i].origin.y = (c->u.y * uv[i].x) + (c->v.y * uv[i].y);
-    rays[i].origin.z = (c->u.z * uv[i].x) + (c->v.z * uv[i].y);
-    rays[i].direction = -c->w;
+    rays[i].origin = c.eye;
+    rays[i].origin.x = (c.u.x * uv[i].x) + (c.v.x * uv[i].y);
+    rays[i].origin.y = (c.u.y * uv[i].x) + (c.v.y * uv[i].y);
+    rays[i].origin.z = (c.u.z * uv[i].x) + (c.v.z * uv[i].y);
+    rays[i].direction = -c.w;
 }
 
 static float determinant3x3(float3 system1, float3 system2, float3 system3)
@@ -153,10 +154,11 @@ static float3 solve(float3 system1, float3 system2, float3 system3, float3 solut
     return linear_solution;
 }
 
-static intersect tri_intersect(triangle triangle, viewRay ray, float t_upper_bound, float t_lower_bound)
+static intersect tri_intersect(object triangle, viewRay ray, float t_upper_bound, float t_lower_bound)
 {
     intersect intersection;
     intersection.t_ = -1;
+    intersection.intersects = false;
     //setup variables to solve linear solution
     float3 system1 = triangle.a - triangle.b;
     float3 system2 = triangle.a - triangle.c;
@@ -164,12 +166,14 @@ static intersect tri_intersect(triangle triangle, viewRay ray, float t_upper_bou
     float3 solution = triangle.a - ray.origin;
     
     float3 linearSolution = solve(system1, system2, system3, solution);
+    
+    
     //analize solution to make sure ray hits the triangle.
-    if (linearSolution.z > t_upper_bound || linearSolution.z < t_lower_bound)
+    if (linearSolution.z < t_lower_bound || linearSolution.z > t_upper_bound)
     {  return intersection;}
     if (linearSolution.y < 0 || linearSolution.y > 1)
     {  return intersection;}
-    if (linearSolution.x < 0 || linearSolution.x > 1 - linearSolution[1])
+    if (linearSolution.x < 0 || linearSolution.x > 1 - linearSolution.y)
     {  return intersection;}
     //ray hits the triangle, so calculate intersection, return the intersection object.
     intersection.obj.triObj = triangle;
@@ -179,6 +183,7 @@ static intersect tri_intersect(triangle triangle, viewRay ray, float t_upper_bou
     float3 a_b = triangle.a - triangle.b;
     float3 a_c = triangle.a - triangle.c;
     intersection.normal = cl_cross(a_b, a_c);
+    intersection.intersects = true;
     intersection.t_ = linearSolution.z;
     return intersection;
 }
@@ -186,14 +191,19 @@ static intersect tri_intersect(triangle triangle, viewRay ray, float t_upper_bou
 static intersect circle_intersect(circle circ, viewRay ray, float t_upper_bound, float t_lower_bound)
 {
     intersect xsect;
+    xsect.intersects = false;
     xsect.t_ = -1.0f;
+    float3 origin_min_center = ray.origin - circ.center;
     float a = cl_dot(ray.direction, ray.direction);
-    float b = cl_dot(ray.direction, (ray.origin - circ.center));
-    float c = cl_dot((ray.origin - circ.center), ((ray.origin - circ.center) - (circ.radius * circ.radius)));
+    float b = cl_dot(ray.direction, origin_min_center);
+    float radsqr = circ.radius * circ.radius;
+    float c = cl_dot(origin_min_center, origin_min_center);
+    c = c - radsqr;
     float descriminate = b * b - a * c;
     if (descriminate < 0) // no intersection
     {
-      return xsect;
+//        return 1.0f;
+       return xsect;
     }
     else
     {
@@ -212,10 +222,13 @@ static intersect circle_intersect(circle circ, viewRay ray, float t_upper_bound,
               xsect.obj.is_triangle = false;
               xsect.location = location;
               xsect.normal = normal;
+              xsect.intersects = true;
               xsect.t_ = t;
+//              return 2.0f;
               return xsect;
           }
           //t is not withing upper and lower bounds, so the ray does not cross object.
+//          else return 3.0f;
           else return xsect;
         }
         else // has only one intersecton
@@ -231,44 +244,55 @@ static intersect circle_intersect(circle circ, viewRay ray, float t_upper_bound,
               xsect.obj.is_triangle = false;
               xsect.location = location;
               xsect.normal = normal;
+              xsect.intersects = true;
               xsect.t_ = t;
+//              return 4.0f;
               return xsect;;
           }
           //t is not within upper and lower bounds, so we act as though the ray does not cross with object.
-          else return xsect;
+//          else return 5.0f;
+           else return xsect;
         }
     }
 }
 
-__kernel void intersections(__global object* objects, __global int* numObjects, __global viewRay* rays, __global intersect* intersections, __global float* t_upper_bound, __global float* t_lower_bound)
+__kernel void intersections(__global object* objects, int numObjects, __global viewRay* rays, __global intersect* intersections, float t_upper_bound, float t_lower_bound, __global float3* debug)
 {
+    float temp_max = t_upper_bound;
     intersect closest;
-    closest.t_ = *t_upper_bound;
+    closest.t_ = -1;
+    closest.intersects = false;
     closest.obj.is_triangle = false;
     closest.obj.is_circle = false;
     const int i = get_global_id(0);
-    for (int j = 0; j < *numObjects; ++j)
+    
+    for (int j = 0; j < 1; ++j)
     {
-        if (objects[i].is_triangle)
+        if (objects[j].is_triangle)
         {
-            intersect temp = tri_intersect(objects[j].triObj, rays[i], *t_upper_bound, *t_lower_bound);
-            if (temp.t_ < 0.0f && temp.t_ < *t_upper_bound)
+            intersect temp = tri_intersect(objects[j].triObj, rays[i], temp_max, t_lower_bound);
+            
+            if (temp.intersects && temp.t_ > t_lower_bound && temp.t_ < temp_max)
             {
                     closest = temp;
+                    temp_max = closest.t_;
             }
         }
         else
         {
-            intersect temp = circle_intersect(objects[j].circleObj, rays[i], *t_upper_bound, *t_lower_bound);
-            if (temp.t_ < 0.0f && temp.t_ < *t_upper_bound)
+            circle temp_circle = objects[i].circleObj;
+            intersect temp = circle_intersect(temp_circle, rays[i], temp_max, t_lower_bound);
+           
+            if (temp.intersects && temp.t_ > t_lower_bound && temp.t_ < temp_max)
             {
                 closest = temp;
+                temp_max = closest.t_;
             }
         }
     }
-    if (closest.t_ > *t_upper_bound - 1)
+    if (!closest.intersects)
     {
-        closest.t_ = -1;
+        closest.t_ = -1.0f;
     }
     intersections[i] = closest;
 }

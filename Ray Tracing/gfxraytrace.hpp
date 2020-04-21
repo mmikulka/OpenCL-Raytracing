@@ -752,7 +752,7 @@ vp convert_vp_Struct(viewport viewport_)
 
 object scene_triangle::convert_to_obj_struct() const noexcept
 {
-    triangle tri;
+    object tri;
     tri.color.r = color().r();
     tri.color.g = color().g();
     tri.color.b = color().b();
@@ -767,30 +767,26 @@ object scene_triangle::convert_to_obj_struct() const noexcept
     tri.c.s[1] = static_cast<float>(c_[1]);
     tri.c.s[2] = static_cast<float>(c_[2]);
     
-    object obj;
-    obj.triObj = tri;
-    obj.is_triangle = true;
-    obj.is_circle = false;
-    return obj;
+    tri.is_triangle = true;
+    tri.is_circle = false;
+    return tri;
 }
 
 object scene_sphere::convert_to_obj_struct() const noexcept
 {
-    circle circ;
-    circ.color.r = color().r();
-    circ.color.g = color().g();
-    circ.color.b = color().b();
-    circ.shininess = static_cast<float>(shininess());
-    circ.center.s[0] = static_cast<float>(center_[0]);
-    circ.center.s[1] = static_cast<float>(center_[1]);
-    circ.center.s[2] = static_cast<float>(center_[2]);
-    circ.radius = static_cast<float>(radius_);
+    object circle;
+    circle.color.r = color().r();
+    circle.color.g = color().g();
+    circle.color.b = color().b();
+    circle.shininess = static_cast<float>(shininess());
+    circle.center.s[0] = static_cast<float>(center_[0]);
+    circle.center.s[1] = static_cast<float>(center_[1]);
+    circle.center.s[2] = static_cast<float>(center_[2]);
+    circle.radius = static_cast<float>(radius_);
     
-    object obj;
-    obj.circleObj = circ;
-    obj.is_triangle = false;
-    obj.is_circle = true;
-    return obj;
+    circle.is_triangle = false;
+    circle.is_circle = true;
+    return circle;
 }
 
 light point_light::light_obj_to_struct() const noexcept
@@ -813,14 +809,20 @@ light point_light::light_obj_to_struct() const noexcept
 _intersect* scene::intersect (const viewRay* rays, int numRays) const noexcept {
     
     
-    double tmin = 0;
-    double tmax = std::numeric_limits<double>::infinity();
+    float tmin = 0;
+    float tmax = std::numeric_limits<float>::max();
     
     _intersect * xsects = new _intersect[numRays];
     
-    size_t numObjects = objects_.size();
+    int numObjects = objects_.size();
     
     object objects[numObjects];
+    
+    for (int i = 0; i < numObjects; ++i)
+    {
+        objects[i] = objects_[i]->convert_to_obj_struct();
+//        std::cout << "Object " << i << " is_circ: " << objects[i].is_circle << std::endl;
+    }
     
     xsects = cl_intersect(objects, numObjects, rays, numRays, tmax, tmin);
     
@@ -873,10 +875,10 @@ hdr_image scene::render() const noexcept {
    viewRay* rays = projection_->compute_view_ray(cl_camera, uV, numPixels);
     
     //testing only
-//    std::cout << "ViewRays: " << std::endl;
+    std::cout << "ViewRays: " << std::endl;
 //        for (int i = 0; i < 20; ++i)
 //        {
-//            std::cout << rays[i].origin.s[0] << ", " << rays[i].origin.s[1] << ", " << rays[i].origin.s[2] << std::endl;
+//            std::cout << rays[i].direction.s[0] << ", " << rays[i].direction.s[1] << ", " << rays[i].direction.s[2] << std::endl;
 //        }
     // if ray hits object then evaluate shading model
     _intersect* xsects = intersect(rays, numPixels);

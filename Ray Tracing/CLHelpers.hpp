@@ -11,6 +11,11 @@
 
 const int n = 160000;             // size of arrays
 
+void printfloat3(cl_float3 debug)
+{
+    std::cout <<  "\tfloat3 " << debug.s[0] << ", " << debug.s[1] << ", " <<  debug.s[2] << std::endl;
+}
+
 cl_float2* cl_uv(cl_float3* positions, vp &viewport, int numPixels)
 {
 
@@ -71,10 +76,8 @@ cl_float2* cl_uv(cl_float3* positions, vp &viewport, int numPixels)
 
     //put aside memory for buffer
     cl::Buffer buffer_A2(context, CL_MEM_READ_WRITE, sizeof(cl_float3)*numPixels);
-    cl::Buffer buffer_A1(context, CL_MEM_READ_WRITE, sizeof(cl_float3)*numPixels);
     cl::Buffer buffer_B2(context, CL_MEM_READ_WRITE, sizeof(vp));
     cl::Buffer buffer_C2(context, CL_MEM_READ_WRITE, sizeof(cl_float2)*numPixels);
-    cl::Buffer buffer_C1(context, CL_MEM_READ_WRITE, sizeof(cl_float2)*numPixels);
     
     //write arrays to buffer
     queue.enqueueWriteBuffer(buffer_A2, CL_TRUE, 0, sizeof(cl_float3)*numPixels, positions);
@@ -93,14 +96,14 @@ cl_float2* cl_uv(cl_float3* positions, vp &viewport, int numPixels)
     
     
     //testing only
-    std::cout << "uv array test" << std::endl;
-    for (int i = 0; i < numPixels; ++i)
-    {
-        std::cout << "i = " << i << "\t";
-        std::cout << "UV: " << C[i].s[0] << ", " << C[i].s[1];
-        std::cout << "\t pix: " << positions[i].s[0] << ", " << positions[i].s[1] << std::endl;
-        std::cout <<  std::endl;
-    }
+//    std::cout << "uv array test" << std::endl;
+//    for (int i = 0; i < numPixels; ++i)
+//    {
+//        std::cout << "i = " << i << "\t";
+//        std::cout << "UV: " << C[i].s[0] << ", " << C[i].s[1];
+//        std::cout << "\t pix: " << positions[i].s[0] << ", " << positions[i].s[1] << std::endl;
+//        std::cout <<  std::endl;
+//    }
     
     return C;
     
@@ -108,13 +111,9 @@ cl_float2* cl_uv(cl_float3* positions, vp &viewport, int numPixels)
 
 viewRay* cl_ortho_viewrays(cam& camera, cl_float2 * uV, int numPixels)
 {
-    
-    cl_float2 splitArray[ARRAY_SPLIT];
-    for (int i = 0; i < ARRAY_SPLIT; ++i)
-    {
-        splitArray[i] = uV[i + ARRAY_SPLIT];
-    }
-    
+//
+//    std::cout << "camera: " << std::endl;
+//    std::cout << camera.w.s[0] << ", " << camera.w.s[1] << ", " << camera.w.s[2] << std::endl;
     
     //setup and get platforms of computer
     std::vector<cl::Platform> all_platforms;
@@ -166,54 +165,29 @@ viewRay* cl_ortho_viewrays(cam& camera, cl_float2 * uV, int numPixels)
 
     // set up kernels and vectors for GPU code
     cl::CommandQueue queue(context, default_device);
-    cl::Kernel uv_kernel = cl::Kernel(program, "ortho_viewrays");
-    cl::Kernel uv_kernel2 = cl::Kernel(program, "ortho_viewrays");
+    cl::Kernel ortho_kernel = cl::Kernel(program, "ortho_viewrays");
     
     // construct arrays
     viewRay* C = new viewRay[n];
-    viewRay* C2 = new viewRay[n];
 
     //put aside memory for buffer
-    cl::Buffer buffer_A2(context, CL_MEM_READ_WRITE, sizeof(cam));
+//    cl::Buffer buffer_A2(context, CL_MEM_READ_WRITE, sizeof(cam));
     cl::Buffer buffer_B2(context, CL_MEM_READ_WRITE, sizeof(cl_float2) * numPixels);
     cl::Buffer buffer_C2(context, CL_MEM_READ_WRITE, sizeof(viewRay)*numPixels);
     
-    cl::Buffer buffer_B1(context, CL_MEM_READ_WRITE, sizeof(cl_float2) * numPixels);
-    cl::Buffer buffer_C1(context, CL_MEM_READ_WRITE, sizeof(viewRay)*numPixels);
-    
     
     //write arrays to buffer
-    queue.enqueueWriteBuffer(buffer_A2, CL_TRUE, 0, sizeof(cam), &camera);
+//    queue.enqueueWriteBuffer(buffer_A2, CL_TRUE, 0, sizeof(cam), &camera);
     queue.enqueueWriteBuffer(buffer_B2, CL_TRUE, 0, sizeof(cl_float2) * numPixels, uV);
 
-    uv_kernel.setArg(0, buffer_A2);
-    uv_kernel.setArg(1, buffer_B2);
-    uv_kernel.setArg(2, buffer_C2);
+    ortho_kernel.setArg(0, camera);
+    ortho_kernel.setArg(1, buffer_B2);
+    ortho_kernel.setArg(2, buffer_C2);
     
-    queue.enqueueNDRangeKernel(uv_kernel, cl::NullRange, cl::NDRange(NUM_GLOBAL_WITEMS), cl::NDRange(32));
+    queue.enqueueNDRangeKernel(ortho_kernel, cl::NullRange, cl::NDRange(NUM_GLOBAL_WITEMS), cl::NDRange(32));
     queue.enqueueReadBuffer(buffer_C2, CL_TRUE, 0, sizeof(viewRay)*n, C);
     
     queue.finish();
-    
-    queue.enqueueWriteBuffer(buffer_A2, CL_TRUE, 0, sizeof(cam), &camera);
-    queue.enqueueWriteBuffer(buffer_B1, CL_TRUE, 0, sizeof(cl_float2) * numPixels, splitArray);
-    
-    uv_kernel.setArg(0, buffer_A2);
-    uv_kernel.setArg(1, buffer_B1);
-    uv_kernel.setArg(2, buffer_C1);
-    
-    queue.enqueueNDRangeKernel(uv_kernel2, cl::NullRange, cl::NDRange(NUM_GLOBAL_WITEMS), cl::NDRange(32));
-
-    queue.enqueueReadBuffer(buffer_C1, CL_TRUE, 0, sizeof(viewRay)*n, C2);
-    
-    queue.finish();
-    
-    //combine the 2 arrays into one
-    for (int i = ARRAY_SPLIT; i < numPixels; ++i)
-    {
-        C[i] = C2[i-ARRAY_SPLIT];
-    }
-    
     
     delete[]kernel_code;
     
@@ -221,8 +195,7 @@ viewRay* cl_ortho_viewrays(cam& camera, cl_float2 * uV, int numPixels)
 //    for (int i = 0; i < numPixels; ++i)
 //    {
 //
-//        std::cout << "i: " << i << "\tRay Origin: " << C[i].origin.s[0] << ", " << C[i].origin.s[1] << ", " << C[i].origin.s[2];
-//        std::cout << "\tC2: " << C2[i].origin.s[0] << ", " << C2[i].origin.s[1] << ", " << C2[i].origin.s[2] << std::endl;
+//        std::cout << "i: " << i << "\tRay Origin: " << C[i].origin.s[0] << ", " << C[i].origin.s[1] << ", " << C[i].origin.s[2] << std::endl;
 //    }
     
     return C;
@@ -230,7 +203,24 @@ viewRay* cl_ortho_viewrays(cam& camera, cl_float2 * uV, int numPixels)
 
 intersect* cl_intersect (object * objects, int numObjects, const viewRay* rays, int numRays, float t_upper_bound, float t_lower_bound)
 {
+    typedef cl_float3 bug;
+//    std::cout << "t-lower-bounds: " << t_lower_bound << std::endl;
     //setup and get platforms of computer
+    
+    for (int i = 0; i < numObjects; ++i)
+    {
+        std::cout << "Object " << i << ": circle? " << objects[i].is_circle;
+        
+        if (objects[i].is_circle)
+        {
+            std::cout << "\tCircle: Center: " << objects[i].circleObj.center.s[0] << ", " << objects[i].circleObj.center.s[1] << ", " << objects[i].circleObj.center.s[2] << "\tRadius: " << objects[i].circleObj.radius << std::endl;
+        }
+//        if (objects[i].is_triangle)
+//        {
+//            std::cout << "\tTriangle: a: " << objects[i].triObj.a.s[0] << ", " <<objects[i].triObj.a.s[1] << ", " << objects[i].triObj.a.s[2] << "\tb: " << objects[i].triObj.b.s[0] << ", " <<objects[i].triObj.b.s[1] << ", " <<objects[i].triObj.b.s[2] << "\tc: " << objects[i].triObj.c.s[0] << ", " << objects[i].triObj.c.s[1] << ", " << objects[i].triObj.c.s[2] << std::endl;
+//        }
+//
+    }
     std::vector<cl::Platform> all_platforms;
     cl::Platform::get(&all_platforms);
 
@@ -285,43 +275,45 @@ intersect* cl_intersect (object * objects, int numObjects, const viewRay* rays, 
 
     // construct vectors
     intersect* C = new intersect[n];
+    bug* debug  = new bug[n];
 
     //put aside memory for buffer
-    cl::Buffer buffer_A2(context, CL_MEM_READ_WRITE, sizeof(object) * numObjects);
+    cl::Buffer buffer_A2(context, CL_MEM_READ_WRITE, sizeof(object) * numObjects * 2);
     cl::Buffer buffer_B2(context, CL_MEM_READ_WRITE, sizeof(viewRay) * numRays);
     cl::Buffer buffer_C2(context, CL_MEM_READ_WRITE, sizeof(intersect) * numRays);
-    cl::Buffer buffer_numObj(context, CL_MEM_READ_WRITE, sizeof(int));
-    cl::Buffer buffer_upper(context, CL_MEM_READ_WRITE, sizeof(float));
-    cl::Buffer buffer_lower(context, CL_MEM_READ_WRITE, sizeof(float));
+    cl::Buffer buffer_debug(context, CL_MEM_READ_WRITE, sizeof(bug) * numRays);
     
     //write arrays to buffer
     queue.enqueueWriteBuffer(buffer_A2, CL_TRUE, 0, sizeof(object) * numObjects, objects);
     queue.enqueueWriteBuffer(buffer_B2, CL_TRUE, 0, sizeof(viewRay) * numRays, rays);
-    queue.enqueueWriteBuffer(buffer_numObj, CL_TRUE, 0, sizeof(int), &numObjects);
-    queue.enqueueWriteBuffer(buffer_upper, CL_TRUE, 0, sizeof(float), &t_upper_bound);
-    queue.enqueueWriteBuffer(buffer_lower, CL_TRUE, 0, sizeof(float), &t_lower_bound);
 
     intersect_kernel.setArg(0, buffer_A2);
     intersect_kernel.setArg(2, buffer_B2);
     intersect_kernel.setArg(3, buffer_C2);
-    intersect_kernel.setArg(1, buffer_numObj);
-    intersect_kernel.setArg(4, buffer_upper);
-    intersect_kernel.setArg(5, buffer_lower);
+    intersect_kernel.setArg(1, numObjects);
+    intersect_kernel.setArg(4, t_upper_bound);
+    intersect_kernel.setArg(5, t_lower_bound);
+    intersect_kernel.setArg(6, buffer_debug);
     
     
     queue.enqueueNDRangeKernel(intersect_kernel, cl::NullRange, cl::NDRange(NUM_GLOBAL_WITEMS), cl::NDRange(32));
     queue.enqueueReadBuffer(buffer_C2, CL_TRUE, 0, sizeof(intersect)*n, C);
+    queue.enqueueReadBuffer(buffer_debug, CL_TRUE, 0, sizeof(bug)*n, debug);
     
     queue.finish();
     
     delete[]kernel_code;
     
-//    std::cout << "intersection T val" << std::endl;
-//    for (int i = 0; i < 10; ++i)
-//    {
-//        std::cout <<  C[i].t_ << std::endl;
-//    }
-    
+//
+    std::cout << "intersection T val" << std::endl;
+    for (int i = 0; i < numRays; ++i)
+    {
+//        std::cout << "i = " << i << "\t"; //<<debug[i] << std::endl;
+//        printfloat3(C[i].obj.circleObj.center);
+//        if (C[i].t_ > 0)
+        std::cout << "i: " << i << "\tt-val: " <<  C[i].t_ << std::endl;
+    }
+//
     return C;
 }
 
