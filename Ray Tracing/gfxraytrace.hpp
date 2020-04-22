@@ -866,7 +866,7 @@ hdr_image scene::render() const noexcept {
     cl_float3 pixels[h * w];
     
     for (size_t i = 0; i < numPixels; ++i) {
-        pixels[i] = {{static_cast<float>(i / w) + 1.0f, static_cast<float>(i % w) + 1.0f, 0.0f}};
+        pixels[i] = {{static_cast<float>(i % w) + 1.0f, static_cast<float>(i / w) + 1.0f, 0.0f}};
     }
 //    std::cout << "pixel array breakdown" << std::endl;
 //    for (int i = 0; i < numPixels; ++i)
@@ -900,7 +900,7 @@ hdr_image scene::render() const noexcept {
     //transfer colors to hdr_image variable.
     for (int i = 0; i < numPixels; ++i)
     {
-        result.pixel(i / w, i % w, colors[i]);
+        result.pixel(i % w, i / w, colors[i]);
     }
     
     return result;

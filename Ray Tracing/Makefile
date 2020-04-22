@@ -3,7 +3,7 @@ CLANG_FLAGS = -std=c++17 -Wall -g -framework OpenCL
 PNG_FLAGS = `libpng-config --cflags --ldflags`
 GTEST_FLAGS = -lpthread -lgtest_main -lgtest  -lpthread
 
-default: test
+default: fast
 
 all: fast slow
 

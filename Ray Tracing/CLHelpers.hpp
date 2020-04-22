@@ -13,7 +13,7 @@ const int n = 160000;             // size of arrays
 
 void printfloat3(cl_float3 debug)
 {
-    std::cout <<  "\tfloat3 " << debug.s[0] << ", " << debug.s[1] << ", " <<  debug.s[2] << std::endl;
+    std::cout << debug.s[0] << std::endl << debug.s[1] << std::endl <<  debug.s[2] << std::endl;
 }
 
 cl_float2* cl_uv(cl_float3* positions, vp &viewport, int numPixels)
@@ -94,27 +94,12 @@ cl_float2* cl_uv(cl_float3* positions, vp &viewport, int numPixels)
     
     delete[]kernel_code;
     
-    
-    //testing only
-    //    std::cout << "uv array test" << std::endl;
-    //    for (int i = 0; i < numPixels; ++i)
-    //    {
-    //        std::cout << "i = " << i << "\t";
-    //        std::cout << "UV: " << C[i].s[0] << ", " << C[i].s[1];
-    //        std::cout << "\t pix: " << positions[i].s[0] << ", " << positions[i].s[1] << std::endl;
-    //        std::cout <<  std::endl;
-    //    }
-    
     return C;
     
 }
 
 viewRay* cl_ortho_viewrays(cam& camera, cl_float2 * uV, int numPixels)
 {
-    //
-    //    std::cout << "camera: " << std::endl;
-    //    std::cout << camera.w.s[0] << ", " << camera.w.s[1] << ", " << camera.w.s[2] << std::endl;
-    
     //setup and get platforms of computer
     std::vector<cl::Platform> all_platforms;
     cl::Platform::get(&all_platforms);
@@ -191,13 +176,6 @@ viewRay* cl_ortho_viewrays(cam& camera, cl_float2 * uV, int numPixels)
     
     delete[]kernel_code;
     
-    //testing only
-    //    for (int i = 0; i < numPixels; ++i)
-    //    {
-    //
-    //        std::cout << "i: " << i << "\tRay Origin: " << C[i].origin.s[0] << ", " << C[i].origin.s[1] << ", " << C[i].origin.s[2] << std::endl;
-    //    }
-    
     return C;
 }
 
@@ -258,13 +236,11 @@ viewRay* cl_persp_viewrays(cam& camera, cl_float2 * uV, int numPixels, float foc
     viewRay* C = new viewRay[n];
     
     //put aside memory for buffer
-    //    cl::Buffer buffer_A2(context, CL_MEM_READ_WRITE, sizeof(cam));
     cl::Buffer buffer_B2(context, CL_MEM_READ_WRITE, sizeof(cl_float2) * numPixels);
     cl::Buffer buffer_C2(context, CL_MEM_READ_WRITE, sizeof(viewRay)*numPixels);
     
     
     //write arrays to buffer
-    //    queue.enqueueWriteBuffer(buffer_A2, CL_TRUE, 0, sizeof(cam), &camera);
     queue.enqueueWriteBuffer(buffer_B2, CL_TRUE, 0, sizeof(cl_float2) * numPixels, uV);
     
     persp_kernel.setArg(0, camera);
@@ -293,23 +269,7 @@ viewRay* cl_persp_viewrays(cam& camera, cl_float2 * uV, int numPixels, float foc
 intersect* cl_intersect (object * objects, int numObjects, const viewRay* rays, int numRays, float t_upper_bound, float t_lower_bound)
 {
     typedef float bug;
-    //    std::cout << "t-lower-bounds: " << t_lower_bound << std::endl;
-    //setup and get platforms of computer
     
-    //    for (int i = 0; i < numObjects; ++i)
-    //    {
-    //        std::cout << "Object " << i << ": circle? " << objects[i].is_circle;
-    //
-    //        if (objects[i].is_circle)
-    //        {
-    //            std::cout << "\tCircle: Center: " << objects[i].circleObj.center.s[0] << ", " << objects[i].circleObj.center.s[1] << ", " << objects[i].circleObj.center.s[2] << "\tRadius: " << objects[i].circleObj.radius << std::endl;
-    //        }
-    //        if (objects[i].is_triangle)
-    //        {
-    //            std::cout << "\tTriangle: a: " << objects[i].triObj.a.s[0] << ", " <<objects[i].triObj.a.s[1] << ", " << objects[i].triObj.a.s[2] << "\tb: " << objects[i].triObj.b.s[0] << ", " <<objects[i].triObj.b.s[1] << ", " <<objects[i].triObj.b.s[2] << "\tc: " << objects[i].triObj.c.s[0] << ", " << objects[i].triObj.c.s[1] << ", " << objects[i].triObj.c.s[2] << std::endl;
-    //        }
-    //
-    //    }
     std::vector<cl::Platform> all_platforms;
     cl::Platform::get(&all_platforms);
     
@@ -392,16 +352,26 @@ intersect* cl_intersect (object * objects, int numObjects, const viewRay* rays, 
     queue.finish();
     
     delete[]kernel_code;
+    for (int i = 0; i < numRays; ++i)
+    {
+
+        std::cout << std::endl << debug[0] << std::endl;
+    }
     
     //
-    //    std::cout << "intersection T val" << std::endl;
-    //    for (int i = 0; i < numRays; ++i)
-    //    {
-    //        std::cout << "i = " << i << "\t" <<debug[i] << std::endl;
-    ////        printfloat3(C[i].obj.circleObj.center);
-    ////        if (C[i].t_ > 0)
-    ////        std::cout << "i: " << i << "\tt-val: " <<  C[i].t_ << std::endl;
-    //    }
+//        std::cout << "intersection T val" << std::endl;
+//        for (int i = 0; i < numRays; ++i)
+//        {
+//            if (C[i].intersects > 0)
+//            {
+////            {
+////            std::cout << "i = " << i; //<< "\t" <<debug[i] << std::endl;
+////            printfloat3(C[i].normal);
+////            }
+//
+//            std::cout <<  C[i].t_ << std::endl;
+//            }
+//        }
     //
     return C;
 }
@@ -485,6 +455,13 @@ rgbColor* cl_flat_shader(const intersect* xsect, int numIntersections, rgbColor 
 
 rgbColor* cl_phong_shader(const intersect* xsect, phong& phongInfo, int numIntersections, rgbColor background, const cam camera, light* lights, int numLights)
 {
+    std::cout << "normals: " ;
+//    for (int i = 0; i < numIntersections; ++i)
+//    {
+//        if (xsect[i].intersects)
+//            printfloat3(xsect[i].normal);
+//    }
+    
     
     std::vector<cl::Platform> all_platforms;
     cl::Platform::get(&all_platforms);
@@ -522,8 +499,8 @@ rgbColor* cl_phong_shader(const intersect* xsect, phong& phongInfo, int numInter
     
     kernel_code = new char[filesize];
     myfile.read(kernel_code, filesize);
-    myfile.close()
-    ;
+    myfile.close();
+    
     sources.push_back({kernel_code, filesize});
     
     cl::Program program(context, sources);

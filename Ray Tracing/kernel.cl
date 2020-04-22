@@ -157,7 +157,7 @@ static float determinant3x3(float3 system1, float3 system2, float3 system3)
 static float3 cl_cross ( float3 a, float3 b)
 {
     float3 crossProduct;
-    crossProduct.x = a.y * b.z - a.z * a.y;
+    crossProduct.x = a.y * b.z - a.z * b.y;
     crossProduct.y = a.z * b.x - a.x * b.z;
     crossProduct.z = a.x * b.y - a.y * b.x;
     return crossProduct;
@@ -173,7 +173,9 @@ static float cl_dot (float3 a, float3 b)
 
 static float cl_magnitude(float3 a)
 {
-    float squaredMag = dot(a, a);
+    float squaredMag = a.x * a.x;
+    squaredMag += a.y * a.y;
+    squaredMag += a.z * a.z;
     return sqrt(squaredMag);
 }
 
@@ -273,7 +275,7 @@ static intersect circle_intersect(circle circ, viewRay ray, float t_upper_bound,
         {
             t /= a;
             float3 location = ray.origin + ray.direction * t;
-            float3 normal = cl_normalize((location - circ.center) / circ.radius);
+            float3 normal = cl_normalize((location - circ.center));
             //make sure t is within upper and lower bounds.
             if (t < t_upper_bound && t > t_lower_bound)
             {
@@ -319,7 +321,6 @@ __kernel void intersections(__global object* objects, int numObjects, __global v
         else
         {
             intersect temp = circle_intersect(objects[j].circleObj, rays[i], temp_max, t_lower_bound);
-            debug[i] = j;
             
             if (temp.intersects && temp.t_ > t_lower_bound && temp.t_ < temp_max)
             {
@@ -352,16 +353,6 @@ __kernel void flat_shader(__global intersect* xsects, __global rgbColor* backgro
     {
         result[i] = xsects[i].obj.triObj.color;
     }
-}
-
-
-
-//test function not neede by program
-__kernel void parallel_add(__global float3* arr, __global float3* z){
-    const int i = get_global_id(0);
-    z[i].x = arr[i].x + arr[i].y;
-    z[i].y = 0.0;
-    z[i].z = 0.0;
 }
 
 __kernel void phong_shader(phong phongInfo, __global intersect* xsects, rgbColor background, __global rgbColor* color, cam camera, __global light * lights, int numLights)
