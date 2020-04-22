@@ -352,11 +352,11 @@ intersect* cl_intersect (object * objects, int numObjects, const viewRay* rays, 
     queue.finish();
     
     delete[]kernel_code;
-    for (int i = 0; i < numRays; ++i)
-    {
-
-        std::cout << std::endl << debug[0] << std::endl;
-    }
+//    for (int i = 0; i < numRays; ++i)
+//    {
+//
+//        std::cout << std::endl << debug[0] << std::endl;
+//    }
     
     //
 //        std::cout << "intersection T val" << std::endl;
