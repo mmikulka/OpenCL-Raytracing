@@ -107,17 +107,16 @@ typedef struct __attribute__((packed))_object
 
 typedef struct __attribute__((packed))_intersect
     {
-        object obj;
         float3 location;
         float3 normal;
         bool intersects;
         float t_;
-        //extra dummy vars to make sure size of struct is multiple of float4
+        float shininess;
+        rgbColor color;
+        bool is_triangle;
+        bool is_circle;
         bool dummy1;
-        bool dummy2;
-        bool dummy3;
-        float dummy4;
-        float dummy5;
+        float dummy2;
     }intersect;
 
 __kernel void uv(__global float3* pos, __global vp * viewPort, __global float2* out)
@@ -216,15 +215,16 @@ static intersect tri_intersect(triangle triangle, viewRay ray, float t_upper_bou
     if (linearSolution.x < 0 || linearSolution.x > 1 - linearSolution.y)
     {  return intersection;}
     //ray hits the triangle, so calculate intersection, return the intersection object.
-    intersection.obj.triObj = triangle;
-    intersection.obj.is_triangle = true;
-    intersection.obj.is_circle = false;
     intersection.location = ray.origin + ray.direction * linearSolution.z;
     float3 a_b = triangle.a - triangle.b;
     float3 a_c = triangle.a - triangle.c;
-    intersection.normal = cl_cross(a_b, a_c);
+    intersection.normal = normalize(cl_cross(a_b, a_c));
     intersection.intersects = true;
     intersection.t_ = linearSolution.z;
+    intersection.shininess = triangle.shininess;
+    intersection.color = triangle.color;
+    intersection.is_triangle = true;
+    intersection.is_circle = false;
     return intersection;
 }
 
@@ -232,6 +232,9 @@ static intersect circle_intersect(circle circ, viewRay ray, float t_upper_bound,
 {
     intersect xsect;
     xsect.intersects = false;
+    xsect.is_circle = false;
+    xsect.is_triangle = false;
+    xsect.location.x = -3;
     xsect.t_ = -1.0f;
     float3 origin_min_center = ray.origin - circ.center;
     float a = cl_dot(ray.direction, ray.direction);
@@ -242,7 +245,7 @@ static intersect circle_intersect(circle circ, viewRay ray, float t_upper_bound,
     float descriminate = b * b - a * c;
     if (descriminate < 0) // no intersection
     {
-        //        return 1.0f;
+//                return -3.0f;
         return xsect;
     }
     else
@@ -252,58 +255,57 @@ static intersect circle_intersect(circle circ, viewRay ray, float t_upper_bound,
         {
             t -= sqrt(descriminate);
             t /= a;
-            float3 location = ray.origin + ray.direction * t;
-            float3 normal = cl_normalize((location - circ.center) / circ.radius);
             //test to make sure t is within the uper and lower bounds
             if(t < t_upper_bound && t > t_lower_bound)
             {
-                xsect.obj.circleObj = circ;
-                xsect.obj.is_circle = true;
-                xsect.obj.is_triangle = false;
-                xsect.location = location;
-                xsect.normal = normal;
+                xsect.location = ray.origin + ray.direction * t;
+                xsect.normal = cl_normalize((xsect.location - circ.center) / circ.radius);
                 xsect.intersects = true;
                 xsect.t_ = t;
-                //              return 2.0f;
+                xsect.shininess = circ.shininess;
+                xsect.color = circ.color;
+                xsect.is_circle = true;
+                xsect.is_triangle = false;
+//                return xsect.location.x;
                 return xsect;
             }
             //t is not withing upper and lower bounds, so the ray does not cross object.
-            //          else return 3.0f;
+//                      else return 3.0f;
             else return xsect;
         }
         else // has only one intersecton
         {
             t /= a;
-            float3 location = ray.origin + ray.direction * t;
-            float3 normal = cl_normalize((location - circ.center));
             //make sure t is within upper and lower bounds.
             if (t < t_upper_bound && t > t_lower_bound)
             {
-                xsect.obj.circleObj = circ;
-                xsect.obj.is_circle = true;
-                xsect.obj.is_triangle = false;
-                xsect.location = location;
-                xsect.normal = normal;
+                xsect.location = ray.origin + ray.direction * t;
+                xsect.normal = cl_normalize(xsect.location - circ.center);
                 xsect.intersects = true;
                 xsect.t_ = t;
-                //              return 4.0f;
+                xsect.shininess = circ.shininess;
+                xsect.color = circ.color;
+                xsect.is_circle = true;
+                xsect.is_triangle = false;
+//                              return 4.0f;
                 return xsect;;
             }
             //t is not within upper and lower bounds, so we act as though the ray does not cross with object.
-            //          else return 5.0f;
+//                      else return 5.0f;
             else return xsect;
         }
     }
 }
 
-__kernel void intersections(__global object* objects, int numObjects, __global viewRay* rays, __global intersect* intersections, float t_upper_bound, float t_lower_bound, __global float* debug)
+__kernel void intersections(__global object* objects, int numObjects, __global viewRay* rays, float t_upper_bound, float t_lower_bound, __global intersect* intersections, __global rgbColor* debug)
 {
     float temp_max = t_upper_bound;
     intersect closest;
     closest.t_ = -1;
+    closest.location.x = -3;
     closest.intersects = false;
-    closest.obj.is_triangle = false;
-    closest.obj.is_circle = false;
+    closest.is_triangle = false;
+    closest.is_circle = false;
     const int i = get_global_id(0);
     
     for (int j = 0; j < numObjects; ++j)
@@ -314,44 +316,68 @@ __kernel void intersections(__global object* objects, int numObjects, __global v
             
             if (temp.intersects && temp.t_ > t_lower_bound && temp.t_ < temp_max)
             {
-                closest = temp;
+                closest.location = temp.location;
+                closest.normal = temp.normal;
+                closest.intersects = temp.intersects;
+                closest.t_ = temp.t_;
+                closest.shininess = temp.shininess;
+                closest.color = temp.color;
+                closest.is_triangle = temp.is_triangle;
+                closest.is_circle = temp.is_circle;
                 temp_max = closest.t_;
             }
         }
         else
         {
             intersect temp = circle_intersect(objects[j].circleObj, rays[i], temp_max, t_lower_bound);
+            ;
             
             if (temp.intersects && temp.t_ > t_lower_bound && temp.t_ < temp_max)
             {
-                closest = temp;
-                temp_max = closest.t_;
+                //closest = temp;
+                closest.location = temp.location;
+                closest.normal = temp.normal;
+                closest.intersects = temp.intersects;
+                closest.t_ = temp.t_;
+                closest.shininess = temp.shininess;
+                closest.color = temp.color;
+                closest.is_triangle = temp.is_triangle;
+                closest.is_circle = temp.is_circle;
+                temp_max = temp.t_;
             }
         }
+        barrier(CLK_LOCAL_MEM_FENCE);
     }
     if (!closest.intersects)
     {
-        closest.t_ = -1.0f;
+        intersections[i].t_ = -1.0f;
+        intersections[i].intersects = false;
     }
-    intersections[i] = closest;
+    else
+    {
+    intersections[i].location = closest.location;
+    intersections[i].normal = closest.normal;
+    intersections[i].intersects = closest.intersects;
+    intersections[i].t_ = closest.t_;
+    intersections[i].shininess = closest.shininess;
+        intersections[i].color = closest.color;
+    intersections[i].is_triangle = closest.is_triangle;
+    intersections[i].is_circle = closest.is_circle;
+    }
+    
+//    debug[i] = intersections[i].location;
 }
 
 __kernel void flat_shader(__global intersect* xsects, __global rgbColor* background, __global rgbColor* result)
 {
     int i = get_global_id(0);
-    if (xsects[i].t_ < 0)
+    if (!xsects[i].intersects)
     {
-        result[i].r = background->r;
-        result[i].g = background->g;
-        result[i].b = background->b;
-    }
-    else if(xsects[i].obj.is_circle)
-    {
-        result[i] = xsects[i].obj.circleObj.color;
+        result[i] = *background;
     }
     else
     {
-        result[i] = xsects[i].obj.triObj.color;
+        result[i] = xsects[i].color;
     }
 }
 
@@ -375,32 +401,16 @@ __kernel void phong_shader(phong phongInfo, __global intersect* xsects, rgbColor
         //compute normal dot light location and choose either that or 0
         float ndl = cl_dot(xsects[i].normal, lightDirection);
         if (ndl < 0) ndl = 0;
-        //set variable to the object's color to make code cleaner
-        rgbColor objColor;
-        if (xsects[i].obj.is_triangle)
-        {
-            objColor = xsects[i].obj.triObj.color;
-        }
-        else
-        {
-            objColor = xsects[i].obj.circleObj.color;
-        }
         // add diffuse light output to intensity of pixel.
-        color[i].r += objColor.r * phongInfo.diffuse_coef * ndl;
-        color[i].g += objColor.g * phongInfo.diffuse_coef * ndl;
-        color[i].b += objColor.b * phongInfo.diffuse_coef * ndl;
+        color[i].r += xsects[i].color.r * phongInfo.diffuse_coef * ndl;
+        color[i].g += xsects[i].color.g * phongInfo.diffuse_coef * ndl;
+        color[i].b += xsects[i].color.b * phongInfo.diffuse_coef * ndl;
         // compute normal and bisector and choose 0 or that.
         float ndh =  dot(bisector, xsects[i].normal);
         if (ndh < 0) ndh = 0;
         // raise ndh to phong exponent
-        if (xsects[i].obj.is_triangle)
-        {
-            ndh = powr(ndh, xsects[i].obj.triObj.shininess);
-        }
-        else
-        {
-            ndh = powr(ndh, xsects[i].obj.circleObj.shininess);
-        }        //add specular coefficient to intensity of pixel
+        ndh = powr(ndh, xsects[i].shininess);
+        //add specular coefficient to intensity of pixel
         color[i].r += phongInfo.specular_coef * ndh * lights[j].color.r;
         color[i].g += phongInfo.specular_coef * ndh * lights[j].color.g;
         color[i].b += phongInfo.specular_coef * ndh * lights[j].color.b;

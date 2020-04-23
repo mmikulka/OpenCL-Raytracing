@@ -13,7 +13,7 @@ const int n = 160000;             // size of arrays
 
 void printfloat3(cl_float3 debug)
 {
-    std::cout << debug.s[0] << std::endl << debug.s[1] << std::endl <<  debug.s[2] << std::endl;
+    std::cout << debug.s[0] << ", " << debug.s[1] << ", " <<  debug.s[2] << std::endl;
 }
 
 cl_float2* cl_uv(cl_float3* positions, vp &viewport, int numPixels)
@@ -268,7 +268,9 @@ viewRay* cl_persp_viewrays(cam& camera, cl_float2 * uV, int numPixels, float foc
 
 intersect* cl_intersect (object * objects, int numObjects, const viewRay* rays, int numRays, float t_upper_bound, float t_lower_bound)
 {
-    typedef float bug;
+    typedef rgbColor bug;
+    
+    std::cout << sizeof(intersect) << "\t" << sizeof(cl_float4) << std::endl;
     
     std::vector<cl::Platform> all_platforms;
     cl::Platform::get(&all_platforms);
@@ -327,36 +329,42 @@ intersect* cl_intersect (object * objects, int numObjects, const viewRay* rays, 
     bug* debug  = new bug[n];
     
     //put aside memory for buffer
-    cl::Buffer buffer_A2(context, CL_MEM_READ_WRITE, sizeof(object) * numObjects * 2);
-    cl::Buffer buffer_B2(context, CL_MEM_READ_WRITE, sizeof(viewRay) * numRays);
+    cl::Buffer buffer_obj(context, CL_MEM_READ_WRITE, sizeof(object) * numObjects);
+    cl::Buffer buffer_ray(context, CL_MEM_READ_WRITE, sizeof(viewRay) * numRays);
     cl::Buffer buffer_C2(context, CL_MEM_READ_WRITE, sizeof(intersect) * numRays);
     cl::Buffer buffer_debug(context, CL_MEM_READ_WRITE, sizeof(bug) * numRays);
     
     //write arrays to buffer
-    queue.enqueueWriteBuffer(buffer_A2, CL_TRUE, 0, sizeof(object) * numObjects, objects);
-    queue.enqueueWriteBuffer(buffer_B2, CL_TRUE, 0, sizeof(viewRay) * numRays, rays);
+    queue.enqueueWriteBuffer(buffer_obj, CL_TRUE, 0, sizeof(object) * numObjects, objects);
+    queue.enqueueWriteBuffer(buffer_ray, CL_TRUE, 0, sizeof(viewRay) * numRays, rays);
     
-    intersect_kernel.setArg(0, buffer_A2);
-    intersect_kernel.setArg(2, buffer_B2);
-    intersect_kernel.setArg(3, buffer_C2);
+    intersect_kernel.setArg(0, buffer_obj);
     intersect_kernel.setArg(1, numObjects);
-    intersect_kernel.setArg(4, t_upper_bound);
-    intersect_kernel.setArg(5, t_lower_bound);
+    intersect_kernel.setArg(2, buffer_ray);
+    intersect_kernel.setArg(3, t_upper_bound);
+    intersect_kernel.setArg(4, t_lower_bound);
+    intersect_kernel.setArg(5, buffer_C2);
     intersect_kernel.setArg(6, buffer_debug);
     
     
     queue.enqueueNDRangeKernel(intersect_kernel, cl::NullRange, cl::NDRange(NUM_GLOBAL_WITEMS), cl::NDRange(32));
-    queue.enqueueReadBuffer(buffer_C2, CL_TRUE, 0, sizeof(intersect)*n, C);
-    queue.enqueueReadBuffer(buffer_debug, CL_TRUE, 0, sizeof(bug)*n, debug);
-    
+    queue.enqueueReadBuffer(buffer_C2, CL_TRUE, 0, sizeof(intersect) * numRays, C);
+    queue.enqueueReadBuffer(buffer_debug, CL_TRUE, 0, sizeof(bug)*numRays, debug);
+//
     queue.finish();
     
     delete[]kernel_code;
-//    for (int i = 0; i < numRays; ++i)
-//    {
-//
-//        std::cout << std::endl << debug[0] << std::endl;
-//    }
+    for (int i = 0; i < numRays; ++i)
+    {
+        if (C[i].location.s[0] != 0)
+        {
+//            std::cout << "i: " << i << "\t";
+////            printfloat3(debug[i]);
+////            printfloat3(C[i].normal);
+//            std::cout << "color: " << debug[i].r << ", " << debug[i].g << ", " << debug[i].b << std::endl;
+//        std::cout << "color: " << C[i].color.r << ", " << C[i].color.g << ", " << C[i].color.b << std::endl;
+        }
+    }
     
     //
 //        std::cout << "intersection T val" << std::endl;
@@ -455,7 +463,7 @@ rgbColor* cl_flat_shader(const intersect* xsect, int numIntersections, rgbColor 
 
 rgbColor* cl_phong_shader(const intersect* xsect, phong& phongInfo, int numIntersections, rgbColor background, const cam camera, light* lights, int numLights)
 {
-    std::cout << "normals: " ;
+//    std::cout << "normals: " ;
 //    for (int i = 0; i < numIntersections; ++i)
 //    {
 //        if (xsect[i].intersects)

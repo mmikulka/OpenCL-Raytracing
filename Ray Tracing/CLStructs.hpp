@@ -114,15 +114,14 @@ typedef struct __attribute__((packed))_object
 
 typedef struct __attribute__((packed))_intersect
 {
-    object obj;
     cl_float3 location;
     cl_float3 normal;
     bool intersects;
     float t_;
-    //extra dummy vars to make sure size of struct is multiple of float4
+    float shininess;
+    rgbColor color;
+    bool is_triangle;
+    bool is_circle;
     bool dummy1;
-    bool dummy2;
-    bool dummy3;
-    float dummy4;
-    float dummy5;
+    float dummy2;
 }intersect;
