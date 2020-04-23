@@ -18,9 +18,8 @@ void printfloat3(cl_float3 debug)
     std::cout << debug.s[0] << ", " << debug.s[1] << ", " <<  debug.s[2] << std::endl;
 }
 
-cl_float2* cl_uv(cl_float3* positions, vp &viewport, int numPixels)
+cl::Program initCL ()
 {
-    
     //setup and get platforms of computer
     std::vector<cl::Platform> all_platforms;
     cl::Platform::get(&all_platforms);
@@ -43,7 +42,7 @@ cl_float2* cl_uv(cl_float3* positions, vp &viewport, int numPixels)
     
     // use device[1] because that's a GPU; device[0] is the CPU
     cl::Device default_device=all_devices[deviceNum];
-    std::cout<< "Using device: "<<default_device.getInfo<CL_DEVICE_NAME>()<<"\n";
+    //std::cout<< "Using device: "<<default_device.getInfo<CL_DEVICE_NAME>()<<"\n";
     
     cl::Context context({default_device});
     cl::Program::Sources sources;
@@ -68,6 +67,20 @@ cl_float2* cl_uv(cl_float3* positions, vp &viewport, int numPixels)
         std::cout << "Error building: " << program.getBuildInfo<CL_PROGRAM_BUILD_LOG>(default_device) << std::endl;
         exit(1);
     }
+    
+    delete[]kernel_code;
+    return program;
+}
+
+cl_float2* cl_uv(cl_float3* positions, vp &viewport, int numPixels)
+{
+    
+    cl::Program program = initCL();
+    
+    cl::Context context = program.getInfo<CL_PROGRAM_CONTEXT>();
+    
+    auto devices = context.getInfo<CL_CONTEXT_DEVICES>();
+    auto default_device = devices.front();
     
     // set up kernels and vectors for GPU code
     cl::CommandQueue queue(context, default_device);
@@ -94,7 +107,6 @@ cl_float2* cl_uv(cl_float3* positions, vp &viewport, int numPixels)
     
     queue.finish();
     
-    delete[]kernel_code;
     
     return C;
     
@@ -102,53 +114,13 @@ cl_float2* cl_uv(cl_float3* positions, vp &viewport, int numPixels)
 
 viewRay* cl_ortho_viewrays(cam& camera, cl_float2 * uV, int numPixels)
 {
-    //setup and get platforms of computer
-    std::vector<cl::Platform> all_platforms;
-    cl::Platform::get(&all_platforms);
     
-    if (all_platforms.size()==0) {
-        std::cout<<" No platforms found. Check OpenCL installation!\n";
-        exit(1);
-    }
-    //grab only first platform
-    cl::Platform default_platform=all_platforms[0];
-    // std::cout << "Using platform: "<<default_platform.getInfo<CL_PLATFORM_NAME>()<<"\n";
+    cl::Program program = initCL();
     
-    // get default device (CPUs, GPUs) of the default platform
-    std::vector<cl::Device> all_devices;
-    default_platform.getDevices(CL_DEVICE_TYPE_GPU, &all_devices);
-    if(all_devices.size()==0){
-        std::cout<<" No devices found. Check OpenCL installation!\n";
-        exit(1);
-    }
+    cl::Context context = program.getInfo<CL_PROGRAM_CONTEXT>();
     
-    // use device[1] because that's a GPU; device[0] is the CPU
-    cl::Device default_device=all_devices[deviceNum];
-    // std::cout<< "Using device: "<<default_device.getInfo<CL_DEVICE_NAME>()<<"\n";
-    
-    cl::Context context({default_device});
-    cl::Program::Sources sources;
-    
-    // read kernel from kernel.cl
-    char * kernel_code = nullptr;
-    int filesize = 0;
-    std::ifstream myfile("kernel.cl");
-    myfile.seekg(0, myfile.end);
-    filesize = myfile.tellg();
-    myfile.seekg(0, std::ios::beg);
-    
-    kernel_code = new char[filesize];
-    myfile.read(kernel_code, filesize);
-    myfile.close()
-    ;
-    sources.push_back({kernel_code, filesize});
-    
-    
-    cl::Program program(context, sources);
-    if (program.build({default_device}) != CL_SUCCESS) {
-        std::cout << "Error building: " << program.getBuildInfo<CL_PROGRAM_BUILD_LOG>(default_device) << std::endl;
-        exit(1);
-    }
+    auto devices = context.getInfo<CL_CONTEXT_DEVICES>();
+    auto default_device = devices.front();
     
     // set up kernels and vectors for GPU code
     cl::CommandQueue queue(context, default_device);
@@ -157,14 +129,10 @@ viewRay* cl_ortho_viewrays(cam& camera, cl_float2 * uV, int numPixels)
     // construct arrays
     viewRay* C = new viewRay[n];
     
-    //put aside memory for buffer
-    //    cl::Buffer buffer_A2(context, CL_MEM_READ_WRITE, sizeof(cam));
+    //put aside memory for buffers
     cl::Buffer buffer_B2(context, CL_MEM_READ_WRITE, sizeof(cl_float2) * numPixels);
     cl::Buffer buffer_C2(context, CL_MEM_READ_WRITE, sizeof(viewRay)*numPixels);
     
-    
-    //write arrays to buffer
-    //    queue.enqueueWriteBuffer(buffer_A2, CL_TRUE, 0, sizeof(cam), &camera);
     queue.enqueueWriteBuffer(buffer_B2, CL_TRUE, 0, sizeof(cl_float2) * numPixels, uV);
     
     ortho_kernel.setArg(0, camera);
@@ -176,59 +144,19 @@ viewRay* cl_ortho_viewrays(cam& camera, cl_float2 * uV, int numPixels)
     
     queue.finish();
     
-    delete[]kernel_code;
     
     return C;
 }
 
 viewRay* cl_persp_viewrays(cam& camera, cl_float2 * uV, int numPixels, float focal_length)
 {
-    std::vector<cl::Platform> all_platforms;
-    cl::Platform::get(&all_platforms);
     
-    if (all_platforms.size()==0) {
-        std::cout<<" No platforms found. Check OpenCL installation!\n";
-        exit(1);
-    }
-    //grab only first platform
-    cl::Platform default_platform=all_platforms[0];
-    // std::cout << "Using platform: "<<default_platform.getInfo<CL_PLATFORM_NAME>()<<"\n";
+    cl::Program program = initCL();
     
-    // get default device (CPUs, GPUs) of the default platform
-    std::vector<cl::Device> all_devices;
-    default_platform.getDevices(CL_DEVICE_TYPE_GPU, &all_devices);
-    if(all_devices.size()==0){
-        std::cout<<" No devices found. Check OpenCL installation!\n";
-        exit(1);
-    }
+    cl::Context context = program.getInfo<CL_PROGRAM_CONTEXT>();
     
-    // use device[1] because that's a GPU; device[0] is the CPU
-    cl::Device default_device=all_devices[deviceNum];
-    // std::cout<< "Using device: "<<default_device.getInfo<CL_DEVICE_NAME>()<<"\n";
-    
-    cl::Context context({default_device});
-    cl::Program::Sources sources;
-    
-    // read kernel from kernel.cl
-    char * kernel_code = nullptr;
-    int filesize = 0;
-    std::ifstream myfile("kernel.cl");
-    myfile.seekg(0, myfile.end);
-    filesize = myfile.tellg();
-    myfile.seekg(0, std::ios::beg);
-    
-    kernel_code = new char[filesize];
-    myfile.read(kernel_code, filesize);
-    myfile.close()
-    ;
-    sources.push_back({kernel_code, filesize});
-    
-    
-    cl::Program program(context, sources);
-    if (program.build({default_device}) != CL_SUCCESS) {
-        std::cout << "Error building: " << program.getBuildInfo<CL_PROGRAM_BUILD_LOG>(default_device) << std::endl;
-        exit(1);
-    }
+    auto devices = context.getInfo<CL_CONTEXT_DEVICES>();
+    auto default_device = devices.front();
     
     // set up kernels and vectors for GPU code
     cl::CommandQueue queue(context, default_device);
@@ -256,15 +184,6 @@ viewRay* cl_persp_viewrays(cam& camera, cl_float2 * uV, int numPixels, float foc
     
     queue.finish();
     
-    delete[]kernel_code;
-    
-    //testing only
-    //        for (int i = 0; i < numPixels; ++i)
-    //        {
-    //
-    //            std::cout << "i: " << i << "\tRay direction: " << C[i].direction.s[0] << ", " << C[i].direction.s[1] << ", " << C[i].direction.s[2] << std::endl;
-    //        }
-    
     return C;
 }
 
@@ -272,55 +191,13 @@ intersect* cl_intersect (object * objects, int numObjects, const viewRay* rays, 
 {
     typedef rgbColor bug;
     
-    std::cout << sizeof(intersect) << "\t" << sizeof(cl_float4) << std::endl;
     
-    std::vector<cl::Platform> all_platforms;
-    cl::Platform::get(&all_platforms);
+    cl::Program program = initCL();
     
-    if (all_platforms.size()==0) {
-        std::cout<<" No platforms found. Check OpenCL installation!\n";
-        exit(1);
-    }
-    //grab only first platform
-    cl::Platform default_platform=all_platforms[0];
-    // std::cout << "Using platform: "<<default_platform.getInfo<CL_PLATFORM_NAME>()<<"\n";
+    cl::Context context = program.getInfo<CL_PROGRAM_CONTEXT>();
     
-    // get default device (CPUs, GPUs) of the default platform
-    std::vector<cl::Device> all_devices;
-    default_platform.getDevices(CL_DEVICE_TYPE_GPU, &all_devices);
-    if(all_devices.size()==0){
-        std::cout<<" No devices found. Check OpenCL installation!\n";
-        exit(1);
-    }
-    
-    // use device[1] because that's a GPU; device[0] is the CPU
-    cl::Device default_device=all_devices[deviceNum];
-    // std::cout<< "Using device: "<<default_device.getInfo<CL_DEVICE_NAME>()<<"\n";
-    
-    cl::Context context({default_device});
-    cl::Program::Sources sources;
-    
-    
-    char * kernel_code = nullptr;
-    int filesize = 0;
-    std::ifstream myfile("kernel.cl");
-    myfile.seekg(0, myfile.end);
-    filesize = myfile.tellg();
-    myfile.seekg(0, std::ios::beg);
-    
-    kernel_code = new char[filesize];
-    myfile.read(kernel_code, filesize);
-    myfile.close()
-    ;
-    sources.push_back({kernel_code, filesize});
-    
-    
-    
-    cl::Program program(context, sources);
-    if (program.build({default_device}) != CL_SUCCESS) {
-        std::cout << "Error building: " << program.getBuildInfo<CL_PROGRAM_BUILD_LOG>(default_device) << std::endl;
-        exit(1);
-    }
+    auto devices = context.getInfo<CL_CONTEXT_DEVICES>();
+    auto default_device = devices.front();
     
     // set up kernels and vectors for GPU code
     cl::CommandQueue queue(context, default_device);
@@ -352,87 +229,21 @@ intersect* cl_intersect (object * objects, int numObjects, const viewRay* rays, 
     queue.enqueueNDRangeKernel(intersect_kernel, cl::NullRange, cl::NDRange(NUM_GLOBAL_WITEMS), cl::NDRange(32));
     queue.enqueueReadBuffer(buffer_C2, CL_TRUE, 0, sizeof(intersect) * numRays, C);
     queue.enqueueReadBuffer(buffer_debug, CL_TRUE, 0, sizeof(bug)*numRays, debug);
-//
+    //
     queue.finish();
     
-    delete[]kernel_code;
-    for (int i = 0; i < numRays; ++i)
-    {
-        if (C[i].location.s[0] != 0)
-        {
-//            std::cout << "i: " << i << "\t";
-////            printfloat3(debug[i]);
-////            printfloat3(C[i].normal);
-//            std::cout << "color: " << debug[i].r << ", " << debug[i].g << ", " << debug[i].b << std::endl;
-//        std::cout << "color: " << C[i].color.r << ", " << C[i].color.g << ", " << C[i].color.b << std::endl;
-        }
-    }
-    
-    //
-//        std::cout << "intersection T val" << std::endl;
-//        for (int i = 0; i < numRays; ++i)
-//        {
-//            if (C[i].intersects > 0)
-//            {
-////            {
-////            std::cout << "i = " << i; //<< "\t" <<debug[i] << std::endl;
-////            printfloat3(C[i].normal);
-////            }
-//
-//            std::cout <<  C[i].t_ << std::endl;
-//            }
-//        }
-    //
     return C;
 }
 
 rgbColor* cl_flat_shader(const intersect* xsect, int numIntersections, rgbColor background)
 {
-    std::vector<cl::Platform> all_platforms;
-    cl::Platform::get(&all_platforms);
     
-    if (all_platforms.size()==0) {
-        std::cout<<" No platforms found. Check OpenCL installation!\n";
-        exit(1);
-    }
-    //grab only first platform
-    cl::Platform default_platform=all_platforms[0];
-    // std::cout << "Using platform: "<<default_platform.getInfo<CL_PLATFORM_NAME>()<<"\n";
+    cl::Program program = initCL();
     
-    // get default device (CPUs, GPUs) of the default platform
-    std::vector<cl::Device> all_devices;
-    default_platform.getDevices(CL_DEVICE_TYPE_GPU, &all_devices);
-    if(all_devices.size()==0){
-        std::cout<<" No devices found. Check OpenCL installation!\n";
-        exit(1);
-    }
+    cl::Context context = program.getInfo<CL_PROGRAM_CONTEXT>();
     
-    // use device[1] because that's a GPU; device[0] is the CPU
-    cl::Device default_device=all_devices[deviceNum];
-    // std::cout<< "Using device: "<<default_device.getInfo<CL_DEVICE_NAME>()<<"\n";
-    
-    cl::Context context({default_device});
-    cl::Program::Sources sources;
-    
-    // calculates for each element; C = A + B
-    char * kernel_code = nullptr;
-    int filesize = 0;
-    std::ifstream myfile("kernel.cl");
-    myfile.seekg(0, myfile.end);
-    filesize = myfile.tellg();
-    myfile.seekg(0, std::ios::beg);
-    
-    kernel_code = new char[filesize];
-    myfile.read(kernel_code, filesize);
-    myfile.close()
-    ;
-    sources.push_back({kernel_code, filesize});
-    
-    cl::Program program(context, sources);
-    if (program.build({default_device}) != CL_SUCCESS) {
-        std::cout << "Error building: " << program.getBuildInfo<CL_PROGRAM_BUILD_LOG>(default_device) << std::endl;
-        exit(1);
-    }
+    auto devices = context.getInfo<CL_CONTEXT_DEVICES>();
+    auto default_device = devices.front();
     
     // set up kernels and vectors for GPU code
     cl::CommandQueue queue(context, default_device);
@@ -458,66 +269,18 @@ rgbColor* cl_flat_shader(const intersect* xsect, int numIntersections, rgbColor 
     
     queue.finish();
     
-    delete[]kernel_code;
-    
     return C;
 }
 
 rgbColor* cl_phong_shader(const intersect* xsect, phong& phongInfo, int numIntersections, rgbColor background, const cam camera, light* lights, int numLights)
 {
-//    std::cout << "normals: " ;
-//    for (int i = 0; i < numIntersections; ++i)
-//    {
-//        if (xsect[i].intersects)
-//            printfloat3(xsect[i].normal);
-//    }
     
+    cl::Program program = initCL();
     
-    std::vector<cl::Platform> all_platforms;
-    cl::Platform::get(&all_platforms);
+    cl::Context context = program.getInfo<CL_PROGRAM_CONTEXT>();
     
-    if (all_platforms.size()==0) {
-        std::cout<<" No platforms found. Check OpenCL installation!\n";
-        exit(1);
-    }
-    //grab only first platform
-    cl::Platform default_platform=all_platforms[0];
-    // std::cout << "Using platform: "<<default_platform.getInfo<CL_PLATFORM_NAME>()<<"\n";
-    
-    // get default device (CPUs, GPUs) of the default platform
-    std::vector<cl::Device> all_devices;
-    default_platform.getDevices(CL_DEVICE_TYPE_GPU, &all_devices);
-    if(all_devices.size()==0){
-        std::cout<<" No devices found. Check OpenCL installation!\n";
-        exit(1);
-    }
-    
-    // use device[1] because that's a GPU; device[0] is the CPU
-    cl::Device default_device=all_devices[deviceNum];
-    // std::cout<< "Using device: "<<default_device.getInfo<CL_DEVICE_NAME>()<<"\n";
-    
-    cl::Context context({default_device});
-    cl::Program::Sources sources;
-    
-    // calculates for each element; C = A + B
-    char * kernel_code = nullptr;
-    int filesize = 0;
-    std::ifstream myfile("kernel.cl");
-    myfile.seekg(0, myfile.end);
-    filesize = myfile.tellg();
-    myfile.seekg(0, std::ios::beg);
-    
-    kernel_code = new char[filesize];
-    myfile.read(kernel_code, filesize);
-    myfile.close();
-    
-    sources.push_back({kernel_code, filesize});
-    
-    cl::Program program(context, sources);
-    if (program.build({default_device}) != CL_SUCCESS) {
-        std::cout << "Error building: " << program.getBuildInfo<CL_PROGRAM_BUILD_LOG>(default_device) << std::endl;
-        exit(1);
-    }
+    auto devices = context.getInfo<CL_CONTEXT_DEVICES>();
+    auto default_device = devices.front();
     
     // set up kernels and vectors for GPU code
     cl::CommandQueue queue(context, default_device);
@@ -548,7 +311,6 @@ rgbColor* cl_phong_shader(const intersect* xsect, phong& phongInfo, int numInter
     
     queue.finish();
     
-    delete[]kernel_code;
     
     return C;
 }
