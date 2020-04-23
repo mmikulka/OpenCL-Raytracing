@@ -10,7 +10,9 @@
 #define NUM_GLOBAL_WITEMS ARRAY_SPLIT
 
 const int n = 160000;             // size of arrays
+const int deviceNum = 0;
 
+//debuging float 3;
 void printfloat3(cl_float3 debug)
 {
     std::cout << debug.s[0] << ", " << debug.s[1] << ", " <<  debug.s[2] << std::endl;
@@ -40,7 +42,7 @@ cl_float2* cl_uv(cl_float3* positions, vp &viewport, int numPixels)
     }
     
     // use device[1] because that's a GPU; device[0] is the CPU
-    cl::Device default_device=all_devices[1];
+    cl::Device default_device=all_devices[deviceNum];
     std::cout<< "Using device: "<<default_device.getInfo<CL_DEVICE_NAME>()<<"\n";
     
     cl::Context context({default_device});
@@ -114,14 +116,14 @@ viewRay* cl_ortho_viewrays(cam& camera, cl_float2 * uV, int numPixels)
     
     // get default device (CPUs, GPUs) of the default platform
     std::vector<cl::Device> all_devices;
-    default_platform.getDevices(CL_DEVICE_TYPE_ALL, &all_devices);
+    default_platform.getDevices(CL_DEVICE_TYPE_GPU, &all_devices);
     if(all_devices.size()==0){
         std::cout<<" No devices found. Check OpenCL installation!\n";
         exit(1);
     }
     
     // use device[1] because that's a GPU; device[0] is the CPU
-    cl::Device default_device=all_devices[1];
+    cl::Device default_device=all_devices[deviceNum];
     // std::cout<< "Using device: "<<default_device.getInfo<CL_DEVICE_NAME>()<<"\n";
     
     cl::Context context({default_device});
@@ -194,14 +196,14 @@ viewRay* cl_persp_viewrays(cam& camera, cl_float2 * uV, int numPixels, float foc
     
     // get default device (CPUs, GPUs) of the default platform
     std::vector<cl::Device> all_devices;
-    default_platform.getDevices(CL_DEVICE_TYPE_ALL, &all_devices);
+    default_platform.getDevices(CL_DEVICE_TYPE_GPU, &all_devices);
     if(all_devices.size()==0){
         std::cout<<" No devices found. Check OpenCL installation!\n";
         exit(1);
     }
     
     // use device[1] because that's a GPU; device[0] is the CPU
-    cl::Device default_device=all_devices[1];
+    cl::Device default_device=all_devices[deviceNum];
     // std::cout<< "Using device: "<<default_device.getInfo<CL_DEVICE_NAME>()<<"\n";
     
     cl::Context context({default_device});
@@ -285,14 +287,14 @@ intersect* cl_intersect (object * objects, int numObjects, const viewRay* rays, 
     
     // get default device (CPUs, GPUs) of the default platform
     std::vector<cl::Device> all_devices;
-    default_platform.getDevices(CL_DEVICE_TYPE_ALL, &all_devices);
+    default_platform.getDevices(CL_DEVICE_TYPE_GPU, &all_devices);
     if(all_devices.size()==0){
         std::cout<<" No devices found. Check OpenCL installation!\n";
         exit(1);
     }
     
     // use device[1] because that's a GPU; device[0] is the CPU
-    cl::Device default_device=all_devices[1];
+    cl::Device default_device=all_devices[deviceNum];
     // std::cout<< "Using device: "<<default_device.getInfo<CL_DEVICE_NAME>()<<"\n";
     
     cl::Context context({default_device});
@@ -399,14 +401,14 @@ rgbColor* cl_flat_shader(const intersect* xsect, int numIntersections, rgbColor 
     
     // get default device (CPUs, GPUs) of the default platform
     std::vector<cl::Device> all_devices;
-    default_platform.getDevices(CL_DEVICE_TYPE_ALL, &all_devices);
+    default_platform.getDevices(CL_DEVICE_TYPE_GPU, &all_devices);
     if(all_devices.size()==0){
         std::cout<<" No devices found. Check OpenCL installation!\n";
         exit(1);
     }
     
     // use device[1] because that's a GPU; device[0] is the CPU
-    cl::Device default_device=all_devices[1];
+    cl::Device default_device=all_devices[deviceNum];
     // std::cout<< "Using device: "<<default_device.getInfo<CL_DEVICE_NAME>()<<"\n";
     
     cl::Context context({default_device});
@@ -484,14 +486,14 @@ rgbColor* cl_phong_shader(const intersect* xsect, phong& phongInfo, int numInter
     
     // get default device (CPUs, GPUs) of the default platform
     std::vector<cl::Device> all_devices;
-    default_platform.getDevices(CL_DEVICE_TYPE_ALL, &all_devices);
+    default_platform.getDevices(CL_DEVICE_TYPE_GPU, &all_devices);
     if(all_devices.size()==0){
         std::cout<<" No devices found. Check OpenCL installation!\n";
         exit(1);
     }
     
     // use device[1] because that's a GPU; device[0] is the CPU
-    cl::Device default_device=all_devices[1];
+    cl::Device default_device=all_devices[deviceNum];
     // std::cout<< "Using device: "<<default_device.getInfo<CL_DEVICE_NAME>()<<"\n";
     
     cl::Context context({default_device});
