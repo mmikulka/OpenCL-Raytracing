@@ -1,5 +1,5 @@
-# gradproject-Raytracing
-Graduate Project: GPU raytracer
+# OpenCL-Raytracing
+Graduate Project: OpenCL raytracer
 
 Group members:
 
