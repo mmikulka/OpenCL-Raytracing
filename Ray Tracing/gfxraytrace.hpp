@@ -487,16 +487,6 @@ public:
         return shininess_;
     }
     
-    // Virtual function to find the intersection between this object
-    // and the given viewing ray, if any.
-    //
-    // If no such intersection exists, return an empty optional.
-    //
-    // If there is an intersection within that t range, return an optional that
-    // contains that intersection object.
-    virtual std::unique_ptr<intersection> intersect(const viewRay * rays,
-                                                    double t_min,
-                                                    double t_upper_bound) const noexcept = 0;
     virtual object to_struct() const noexcept = 0;
 };
 
@@ -528,10 +518,6 @@ public:
     constexpr double radius() const noexcept {
         return radius_;
     }
-    
-    virtual std::unique_ptr<intersection> intersect(const viewRay* rays,
-                                                    double t_min,
-                                                    double t_upper_bound) const noexcept;
     virtual object to_struct() const noexcept;
 };
 
@@ -564,9 +550,6 @@ public:
         return c_;
     }
     
-    virtual std::unique_ptr<intersection> intersect(const viewRay* rays,
-                                                    double t_min,
-                                                    double t_upper_bound) const noexcept;
     virtual object to_struct() const noexcept;
 };
 
@@ -878,12 +861,6 @@ hdr_image scene::render() const noexcept {
     vp cl_viewport = viewport_->to_struct();
     //compute uv
     cl_float2 * uV = cl_uv(pixels, cl_viewport, numPixels);
-    //testing only
-//    std::cout << "uv array test" << std::endl;
-//    for (int i = 0; i < numPixels; ++i)
-//    {
-//        std::cout << "uv[" << i << "] = " << uV[i].s[0] << ", " <<  uV[i].s[1] << std::endl;
-//    }
     
     //convert gfx::camera to a struct.
     cam cl_camera = camera_->to_struct();
@@ -921,12 +898,7 @@ viewRay* orthographic_projection::compute_view_ray(cam& c,
                                                    cl_float2 * uv, int numPixels) const noexcept {
     
     viewRay* rays = cl_ortho_viewrays(c, uv, numPixels);
-    
-//    std::cout << "ViewRays: " << std::endl;
-//    for (int i = 0; i < numPixels; ++i)
-//    {
-//        std::cout << rays[i].origin.s[0] << ", " << rays[i].origin.s[1] << ", " << rays[i].origin.s[2] << std::endl;
-//    }
+
     return rays;
 }
 
@@ -946,20 +918,13 @@ hdr_rgb* flat_shader::shade(const scene& scene,
     background.b = scene.background().b();
     
     rgbColor* color = cl_flat_shader(xsect, numIntersections, background);
-//    for (int i = 0; i < 20; ++i)
-//    {
-//        std::cout << "color[" << i << "]: r: " << color[i].r << ", g: " << color[i].g << ", b: " << color[i].b << std::endl;
-//    }
+
     hdr_rgb* hdrColors = new hdr_rgb[numIntersections];
     for (int i = 0; i < numIntersections; ++i)
     {
         hdrColors[i] = hdr_rgb(color[i].r, color[i].g, color[i].b);
     }
-//    std::cout << "HDR Colors" << std::endl;
-//    for (int i = 0; i < numIntersections; ++i)
-//    {
-//        std::cout << "color[" << i << "]: r: " << hdrColors[i].r() << ", g: " << hdrColors[i].g() << ", b: " << hdrColors[i].b() << std::endl;
-//    }
+
     
     return hdrColors;
 }
@@ -983,45 +948,7 @@ hdr_rgb* blinn_phong_shader::shade(const scene& scene,
     background.b = scene.background().b();
     
     rgbColor* color = cl_phong_shader(xsect, phongInfo, numIntersections, background, camera, lights, numLights);
-    //create a vector for intensity of each color and add in the ambient color for each object.
-//    vector3<double> color;
-//    color[0] = (ambient_coefficient_ * ambient_color_.r());
-//    color[1] = (ambient_coefficient_ * ambient_color_.g());
-//    color[2] = (ambient_coefficient_ * ambient_color_.b());
-//
-//
-//    for (size_t i = 0; i < scene.lights().size(); ++i)
-//    {
-//        //compute light vector from object.
-//        vector3<double> lightDirection = (scene.lights()[i]->location() - xsect.location()).normalized();
-//        vector3<double> viewDirection = (camera.eye() - xsect.location()).normalized();
-//        //computre bisector
-//        vector3<double> bisector = (viewDirection + lightDirection).normalized();
-//        //compute normal dot light location and choose either that or 0
-//        double ndl = xsect.normal() * lightDirection;
-//        if (ndl < 0) ndl = 0;
-//        // add diffuse light output to intensity of pixel.
-//        color[0] += xsect.object().color().r() * diffuse_coefficient_ * ndl;
-//        color[1] += xsect.object().color().g() * diffuse_coefficient_ * ndl;
-//        color[2] += xsect.object().color().b() * diffuse_coefficient_ * ndl;
-//        // compute normal and bisector and choose 0 or that.
-//        double ndh =  bisector * xsect.normal();
-//        if (ndh < 0) ndh = 0;
-//        // raise ndh to phong exponent
-//        ndh = pow(ndh, xsect.object().shininess());
-//        //add specular coefficient to intensity of pixel
-//        color[0] += specular_coefficient_ * ndh * scene.lights()[i]->color().r();
-//        color[1] += specular_coefficient_ * ndh * scene.lights()[i]->color().g();
-//        color[2] += specular_coefficient_ * ndh * scene.lights()[i]->color().b();
-//    }
-//    //loop though each color and make sure it is not less than 0 or greatre than 1
-//    for (int i = 0; i < 3; ++i)
-//    {
-//        color[i] = (color[i] < 0)? 0 : color[i];
-//        color[i] = (color[i] > 1)? 1 : color[i];
-//    }
-//    //return color value
-//    return hdr_rgb(color[0], color[1], color[2]);
+    
     hdr_rgb* hdrColors = new hdr_rgb[numIntersections];
     for (int i = 0; i < numIntersections; ++i)
     {
@@ -1030,82 +957,5 @@ hdr_rgb* blinn_phong_shader::shade(const scene& scene,
     return hdrColors;
 }
 
-std::unique_ptr<intersection> scene_sphere::intersect(const viewRay* ray,
-                                                      double t_min,
-                                                      double t_upper_bound) const noexcept
-{
-    /*
-    //setup variables for quadratic equation
-    double a = ray.direction() * ray.direction();
-    double b = ray.direction() * (ray.origin() - center_);
-    double c = (ray.origin() - center_) * (ray.origin() - center_) - (radius_ * radius_);
-    double descriminate = b * b - a * c;
-    if (descriminate < 0) // no intersection
-    {
-        return nullptr;
-    }
-    else
-    {
-        double t = -b;
-        if (descriminate > 0) //has 2 intersections
-        {
-            t -= sqrt(descriminate);
-            t /=a;
-            gfx::vector3<double> location = ray.origin() + ray.direction() * t;
-            gfx::vector3<double> normal = ((location - center_) / radius_).normalized();
-            //test to make sure t is within the upper and lower bounds
-            if (t < t_upper_bound && t > t_min)
-            {
-                return std::make_unique<intersection>(this, location, normal, t);
-            }
-            else return nullptr;
-        }
-        else
-        {
-            t /=a;
-            gfx::vector3<double> location = ray.origin() + ray.direction() * t;
-            gfx::vector3<double> normal = ((location - center_) / radius_).normalized();
-            //make sure t is within upper and lower bounds.
-            if (t < t_upper_bound && t > t_min)
-            {
-                return std::make_unique<intersection>(this, location, normal, t);
-            }
-            //t is not within the upper and lower bounds so the ray will not hit the object.
-            else return nullptr;
-        }
-    }
-     */
-    return nullptr;
-    
-}
-
-
-std::unique_ptr<intersection> scene_triangle::intersect( const viewRay * ray, double t_min, double t_upper_bound) const noexcept {
-    /*
-    assert(t_min < t_upper_bound);
-    
-    //setup the matrix and vector for the system of equations.
-    matrix<double, 3, 3> system;
-    vector3<double> solution;
-    for (int i = 0; i < 3; ++i)
-    {
-        system[i][0] = a_[i] - b_[i];
-        system[i][1] = a_[i] - c_[i];
-        system[i][2] = ray.direction()[i];
-        solution[i] = a_[i] - ray.origin()[i];
-    }
-    vector3<double> linearSolution = system.solve(solution);
-    //analize solution to make sure ray hits the triangle.
-    if (linearSolution[2]>  t_upper_bound || linearSolution[2] < t_min)
-    {  return nullptr;}
-    if (linearSolution[1] < 0 || linearSolution[1] > 1)
-    {  return nullptr;}
-    if (linearSolution[0] < 0 || linearSolution[0] > 1 - linearSolution[1])
-    {  return nullptr;}
-    //ray hits the triangle, so calculate intersection, return the intersection object.
-    vector3<double> intersect = ray.origin() + ray.direction() * linearSolution[2];
-    return std::make_unique<intersection>(this, intersect, (a_-b_).cross(a_-c_).normalized(), linearSolution[2]);*/
-    return nullptr;
-}
 
 }

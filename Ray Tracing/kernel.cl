@@ -196,7 +196,12 @@ static float3 solve(float3 system1, float3 system2, float3 system3, float3 solut
 static intersect tri_intersect(triangle triangle, viewRay ray, float t_upper_bound, float t_lower_bound)
 {
     intersect intersection;
+    intersection.color.r = 0;
+    intersection.color.g = 0;
+    intersection.color.b = 0;
     intersection.t_ = -1;
+    intersection.is_circle = false;
+    intersection.is_triangle = false;
     intersection.intersects = false;
     //setup variables to solve linear solution
     float3 system1 = triangle.a - triangle.b;
@@ -231,6 +236,9 @@ static intersect tri_intersect(triangle triangle, viewRay ray, float t_upper_bou
 static intersect circle_intersect(circle circ, viewRay ray, float t_upper_bound, float t_lower_bound)
 {
     intersect xsect;
+    xsect.color.r = 0;
+    xsect.color.g = 0;
+    xsect.color.b = 0;
     xsect.intersects = false;
     xsect.is_circle = false;
     xsect.is_triangle = false;
@@ -301,6 +309,9 @@ __kernel void intersections(__global object* objects, int numObjects, __global v
 {
     float temp_max = t_upper_bound;
     intersect closest;
+    closest.color.r = -1;
+    closest.color.g = -1;
+    closest.color.b = -1;
     closest.t_ = -1;
     closest.location.x = -3;
     closest.intersects = false;
@@ -386,43 +397,42 @@ __kernel void phong_shader(phong phongInfo, __global intersect* xsects, rgbColor
     int i = get_global_id(0);
     if (xsects[i].intersects)
     {
-    color[i].r = (phongInfo.ambient_coef * phongInfo.ambient_color.r);
-    color[i].g = (phongInfo.ambient_coef* phongInfo.ambient_color.g);
-    color[i].b = (phongInfo.ambient_coef * phongInfo.ambient_color.b);
-
-
-    for (int j = 0; j < numLights; ++j)
-    {
-        //compute light vector from object.
-        float3 lightDirection = cl_normalize(lights[j].location - xsects[i].location);
-        float3 viewDirection = cl_normalize(camera.eye - xsects[i].location);
-        //computre bisector
-        float3 bisector = cl_normalize(viewDirection + lightDirection);
-        //compute normal dot light location and choose either that or 0
-        float ndl = cl_dot(xsects[i].normal, lightDirection);
-        if (ndl < 0) ndl = 0;
-        // add diffuse light output to intensity of pixel.
-        color[i].r += xsects[i].color.r * phongInfo.diffuse_coef * ndl;
-        color[i].g += xsects[i].color.g * phongInfo.diffuse_coef * ndl;
-        color[i].b += xsects[i].color.b * phongInfo.diffuse_coef * ndl;
-        // compute normal and bisector and choose 0 or that.
-        float ndh =  dot(bisector, xsects[i].normal);
-        if (ndh < 0) ndh = 0;
-        // raise ndh to phong exponent
-        ndh = powr(ndh, xsects[i].shininess);
-        //add specular coefficient to intensity of pixel
-        color[i].r += phongInfo.specular_coef * ndh * lights[j].color.r;
-        color[i].g += phongInfo.specular_coef * ndh * lights[j].color.g;
-        color[i].b += phongInfo.specular_coef * ndh * lights[j].color.b;
-    }
-    //loop though each color and make sure it is not less than 0 or greatre than 1
-
-    color[i].r = (color[i].r < 0)? 0 : color[i].r;
-    color[i].r = (color[i].r > 1)? 1 : color[i].r;
-    color[i].g = (color[i].g < 0)? 0 : color[i].g;
-    color[i].g = (color[i].g > 1)? 1 : color[i].g;
-    color[i].b = (color[i].b < 0)? 0 : color[i].b;
-    color[i].b = (color[i].b > 1)? 1 : color[i].b;
+        color[i].r = (phongInfo.ambient_coef * phongInfo.ambient_color.r);
+        color[i].g = (phongInfo.ambient_coef* phongInfo.ambient_color.g);
+        color[i].b = (phongInfo.ambient_coef * phongInfo.ambient_color.b);
+        
+        for (int j = 0; j < numLights; ++j)
+        {
+            //compute light vector from object.
+            float3 lightDirection = cl_normalize(lights[j].location - xsects[i].location);
+            float3 viewDirection = cl_normalize(camera.eye - xsects[i].location);
+            //computre bisector
+            float3 bisector = cl_normalize(viewDirection + lightDirection);
+            //compute normal dot light location and choose either that or 0
+            float ndl = cl_dot(xsects[i].normal, lightDirection);
+            if (ndl < 0) ndl = 0;
+            // add diffuse light output to intensity of pixel.
+            color[i].r += xsects[i].color.r * phongInfo.diffuse_coef * ndl;
+            color[i].g += xsects[i].color.g * phongInfo.diffuse_coef * ndl;
+            color[i].b += xsects[i].color.b * phongInfo.diffuse_coef * ndl;
+            // compute normal and bisector and choose 0 or that.
+            float ndh =  dot(bisector, xsects[i].normal);
+            if (ndh < 0) ndh = 0;
+            // raise ndh to phong exponent
+            ndh = powr(ndh, xsects[i].shininess);
+            //add specular coefficient to intensity of pixel
+            color[i].r += phongInfo.specular_coef * ndh * lights[j].color.r;
+            color[i].g += phongInfo.specular_coef * ndh * lights[j].color.g;
+            color[i].b += phongInfo.specular_coef * ndh * lights[j].color.b;
+        }
+        //loop though each color and make sure it is not less than 0 or greatre than 1
+        
+        color[i].r = (color[i].r < 0)? 0 : color[i].r;
+        color[i].r = (color[i].r > 1)? 1 : color[i].r;
+        color[i].g = (color[i].g < 0)? 0 : color[i].g;
+        color[i].g = (color[i].g > 1)? 1 : color[i].g;
+        color[i].b = (color[i].b < 0)? 0 : color[i].b;
+        color[i].b = (color[i].b > 1)? 1 : color[i].b;
     }
     else
     {

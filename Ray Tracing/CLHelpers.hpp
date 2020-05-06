@@ -6,10 +6,8 @@
 #include "gfxraytrace.hpp"
 #include "CLStructs.hpp"
 
-#define ARRAY_SPLIT 160000
-#define NUM_GLOBAL_WITEMS ARRAY_SPLIT
+#define NUM_GLOBAL_WITEMS 160000
 
-const int n = 160000;             // size of arrays
 const int deviceNum = 0;
 
 //debuging float 3;
@@ -87,7 +85,7 @@ cl_float2* cl_uv(cl_float3* positions, vp &viewport, int numPixels)
     cl::Kernel uv_kernel = cl::Kernel(program, "uv");
     
     // construct vectors
-    cl_float2* C = new cl_float2[n];
+    cl_float2* C = new cl_float2[numPixels];
     
     //put aside memory for buffer
     cl::Buffer buffer_A2(context, CL_MEM_READ_WRITE, sizeof(cl_float3)*numPixels);
@@ -127,7 +125,7 @@ viewRay* cl_ortho_viewrays(cam& camera, cl_float2 * uV, int numPixels)
     cl::Kernel ortho_kernel = cl::Kernel(program, "ortho_viewrays");
     
     // construct arrays
-    viewRay* C = new viewRay[n];
+    viewRay* C = new viewRay[numPixels];
     
     //put aside memory for buffers
     cl::Buffer buffer_B2(context, CL_MEM_READ_WRITE, sizeof(cl_float2) * numPixels);
@@ -140,7 +138,7 @@ viewRay* cl_ortho_viewrays(cam& camera, cl_float2 * uV, int numPixels)
     ortho_kernel.setArg(2, buffer_C2);
     
     queue.enqueueNDRangeKernel(ortho_kernel, cl::NullRange, cl::NDRange(NUM_GLOBAL_WITEMS), cl::NDRange(32));
-    queue.enqueueReadBuffer(buffer_C2, CL_TRUE, 0, sizeof(viewRay)*n, C);
+    queue.enqueueReadBuffer(buffer_C2, CL_TRUE, 0, sizeof(viewRay)*numPixels, C);
     
     queue.finish();
     
@@ -163,7 +161,7 @@ viewRay* cl_persp_viewrays(cam& camera, cl_float2 * uV, int numPixels, float foc
     cl::Kernel persp_kernel = cl::Kernel(program, "persp_viewrays");
     
     // construct arrays
-    viewRay* C = new viewRay[n];
+    viewRay* C = new viewRay[numPixels];
     
     //put aside memory for buffer
     cl::Buffer buffer_B2(context, CL_MEM_READ_WRITE, sizeof(cl_float2) * numPixels);
@@ -180,7 +178,7 @@ viewRay* cl_persp_viewrays(cam& camera, cl_float2 * uV, int numPixels, float foc
     
     
     queue.enqueueNDRangeKernel(persp_kernel, cl::NullRange, cl::NDRange(NUM_GLOBAL_WITEMS), cl::NDRange(32));
-    queue.enqueueReadBuffer(buffer_C2, CL_TRUE, 0, sizeof(viewRay)*n, C);
+    queue.enqueueReadBuffer(buffer_C2, CL_TRUE, 0, sizeof(viewRay)*numPixels, C);
     
     queue.finish();
     
@@ -204,8 +202,8 @@ intersect* cl_intersect (object * objects, int numObjects, const viewRay* rays, 
     cl::Kernel intersect_kernel = cl::Kernel(program, "intersections");
     
     // construct vectors
-    intersect* C = new intersect[n];
-    bug* debug  = new bug[n];
+    intersect* C = new intersect[numRays];
+    bug* debug  = new bug[numRays];
     
     //put aside memory for buffer
     cl::Buffer buffer_obj(context, CL_MEM_READ_WRITE, sizeof(object) * numObjects);
@@ -229,7 +227,7 @@ intersect* cl_intersect (object * objects, int numObjects, const viewRay* rays, 
     queue.enqueueNDRangeKernel(intersect_kernel, cl::NullRange, cl::NDRange(NUM_GLOBAL_WITEMS), cl::NDRange(32));
     queue.enqueueReadBuffer(buffer_C2, CL_TRUE, 0, sizeof(intersect) * numRays, C);
     queue.enqueueReadBuffer(buffer_debug, CL_TRUE, 0, sizeof(bug)*numRays, debug);
-    //
+
     queue.finish();
     
     return C;
@@ -250,7 +248,7 @@ rgbColor* cl_flat_shader(const intersect* xsect, int numIntersections, rgbColor 
     cl::Kernel flat_kernel = cl::Kernel(program, "flat_shader");
     
     // construct vectors
-    rgbColor* C = new rgbColor[n];
+    rgbColor* C = new rgbColor[numIntersections];
     
     //put aside memory for buffer
     cl::Buffer buffer_A2(context, CL_MEM_READ_WRITE, sizeof(intersect) * numIntersections);
@@ -265,7 +263,7 @@ rgbColor* cl_flat_shader(const intersect* xsect, int numIntersections, rgbColor 
     flat_kernel.setArg(2, buffer_C2);
     
     queue.enqueueNDRangeKernel(flat_kernel, cl::NullRange, cl::NDRange(NUM_GLOBAL_WITEMS), cl::NDRange(32));
-    queue.enqueueReadBuffer(buffer_C2, CL_TRUE, 0, sizeof(rgbColor)*n, C);
+    queue.enqueueReadBuffer(buffer_C2, CL_TRUE, 0, sizeof(rgbColor)*numIntersections, C);
     
     queue.finish();
     
@@ -274,6 +272,8 @@ rgbColor* cl_flat_shader(const intersect* xsect, int numIntersections, rgbColor 
 
 rgbColor* cl_phong_shader(const intersect* xsect, phong& phongInfo, int numIntersections, rgbColor background, const cam camera, light* lights, int numLights)
 {
+ 
+//    typedef float bug;
     
     cl::Program program = initCL();
     
@@ -284,33 +284,44 @@ rgbColor* cl_phong_shader(const intersect* xsect, phong& phongInfo, int numInter
     
     // set up kernels and vectors for GPU code
     cl::CommandQueue queue(context, default_device);
-    cl::Kernel persp_kernel = cl::Kernel(program, "phong_shader");
+    cl::Kernel phong_kernel = cl::Kernel(program, "phong_shader");
     
     // construct vectors
-    rgbColor* C = new rgbColor[n];
+    rgbColor* C = new rgbColor[numIntersections];
+//    bug* debug = new bug[numIntersections];
     
     //put aside memory for buffer
     cl::Buffer buffer_intersects(context, CL_MEM_READ_WRITE, sizeof(intersect) * numIntersections);
     cl::Buffer buffer_result(context, CL_MEM_READ_WRITE, sizeof(rgbColor) * numIntersections);
     cl::Buffer buffer_lights(context, CL_MEM_READ_WRITE, sizeof(light) * numLights);
+//    cl::Buffer buffer_debug(context, CL_MEM_READ_WRITE, sizeof(bug) * numLights);
     
     //write arrays to buffer
     queue.enqueueWriteBuffer(buffer_intersects, CL_TRUE, 0, sizeof(intersect) * numIntersections, xsect);
     queue.enqueueWriteBuffer(buffer_lights, CL_TRUE, 0, sizeof(light) * numLights, lights);
     
-    persp_kernel.setArg(0, phongInfo);
-    persp_kernel.setArg(1, buffer_intersects);
-    persp_kernel.setArg(2, background);
-    persp_kernel.setArg(3, buffer_result);
-    persp_kernel.setArg(4, camera);
-    persp_kernel.setArg(5, buffer_lights);
-    persp_kernel.setArg(6, numLights);
+    phong_kernel.setArg(0, phongInfo);
+    phong_kernel.setArg(1, buffer_intersects);
+    phong_kernel.setArg(2, background);
+    phong_kernel.setArg(3, buffer_result);
+    phong_kernel.setArg(4, camera);
+    phong_kernel.setArg(5, buffer_lights);
+    phong_kernel.setArg(6, numLights);
+    //phong_kernel.setArg(7, buffer_debug);
     
-    queue.enqueueNDRangeKernel(persp_kernel, cl::NullRange, cl::NDRange(NUM_GLOBAL_WITEMS), cl::NDRange(32));
-    queue.enqueueReadBuffer(buffer_result, CL_TRUE, 0, sizeof(rgbColor)*n, C);
+    queue.enqueueNDRangeKernel(phong_kernel, cl::NullRange, cl::NDRange(NUM_GLOBAL_WITEMS), cl::NDRange(32));
+    queue.enqueueReadBuffer(buffer_result, CL_TRUE, 0, sizeof(rgbColor)*numIntersections, C);
+//    queue.enqueueReadBuffer(buffer_result, CL_TRUE, 0, sizeof(bug)*numIntersections, debug);
     
     queue.finish();
     
+    /*for (int i = 0; i < numIntersections; ++i)
+    {
+        //if (debug[i].b > 0)
+        {
+            std::cout << "color " << i << " r: " << debug[i] << std:: endl;//.r << " g: " << debug[i].g << " b: " << debug[i].b << std::endl;
+        }
+    }*/
     
     return C;
 }
