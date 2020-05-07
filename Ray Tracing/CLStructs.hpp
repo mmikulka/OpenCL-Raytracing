@@ -29,7 +29,7 @@ typedef struct __attribute__((packed))_rgbColor
 typedef struct __attribute__((packed))_light
 {
     cl_float3 location;
-    rgbColor color;
+    cl_float3 color;
     float intensity;
     //extra dummy vars to make sure size of struct is multiple of float4
     float dummy1;
@@ -69,14 +69,14 @@ typedef struct __attribute__((packed))_phong
     float ambient_coef;
     float diffuse_coef;
     float specular_coef;
-    rgbColor ambient_color;
+    cl_float3 ambient_color;
     //extra dummy vars to make sure size of struct is multiple of float4
     float dummy;
 }phong;
 
 typedef struct __attribute__((packed))_triangle
 {
-    rgbColor color;
+    cl_float3 color;
     float shininess;
     cl_float3 a;
     cl_float3 b;
@@ -89,7 +89,7 @@ typedef struct __attribute__((packed))_triangle
 
 typedef struct __attribute__((packed))_circle
 {
-    rgbColor color;
+    cl_float3 color;
     float shininess;
     cl_float3 center;
     float radius;
@@ -118,10 +118,11 @@ typedef struct __attribute__((packed))_intersect
     cl_float3 normal;
     bool intersects;
     float t_;
-    float shininess;
-    rgbColor color;
+    float dummy2;
+    cl_float3 dummy3;
     bool is_triangle;
     bool is_circle;
     bool dummy1;
-    float dummy2;
+    float shininess;
+    cl_float3 color;
 }intersect;

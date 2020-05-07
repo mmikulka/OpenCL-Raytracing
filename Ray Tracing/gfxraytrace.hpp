@@ -742,9 +742,9 @@ vp viewport::to_struct() const noexcept
 object scene_triangle::to_struct() const noexcept
 {
     object tri;
-    tri.triObj.color.r = color().r();
-    tri.triObj.color.g = color().g();
-    tri.triObj.color.b = color().b();
+    tri.triObj.color.s[0] = color().r();
+    tri.triObj.color.s[1] = color().g();
+    tri.triObj.color.s[2] = color().b();
     tri.triObj.shininess = static_cast<float>(shininess());
     tri.triObj.a.s[0] = static_cast<float>(a_[0]);
     tri.triObj.a.s[1] = static_cast<float>(a_[1]);
@@ -764,9 +764,9 @@ object scene_triangle::to_struct() const noexcept
 object scene_sphere::to_struct() const noexcept
 {
     object circle;
-    circle.circleObj.color.r = color().r();
-    circle.circleObj.color.g = color().g();
-    circle.circleObj.color.b = color().b();
+    circle.circleObj.color.s[0] = color().r();
+    circle.circleObj.color.s[1] = color().g();
+    circle.circleObj.color.s[2] = color().b();
     circle.circleObj.shininess = static_cast<float>(shininess());
     circle.circleObj.center.s[0] = static_cast<float>(center_[0]);
     circle.circleObj.center.s[1] = static_cast<float>(center_[1]);
@@ -786,9 +786,9 @@ light point_light::to_struct() const noexcept
     light.location.s[1] = location_[1];
     light.location.s[2] = location_[2];
     
-    light.color.r = color_.r();
-    light.color.g = color_.g();
-    light.color.b = color_.b();
+    light.color.s[0] = color_.r();
+    light.color.s[1] = color_.g();
+    light.color.s[2] = color_.b();
     
     light.intensity = intensity_;
     
@@ -801,9 +801,9 @@ phong blinn_phong_shader::to_struct() const noexcept
     shaderInfo.ambient_coef = ambient_coefficient_;
     shaderInfo.diffuse_coef = diffuse_coefficient_;
     shaderInfo.specular_coef = specular_coefficient_;
-    shaderInfo.ambient_color.r = ambient_color_.r();
-    shaderInfo.ambient_color.g = ambient_color_.g();
-    shaderInfo.ambient_color.b = ambient_color_.b();
+    shaderInfo.ambient_color.s[0] = ambient_color_.r();
+    shaderInfo.ambient_color.s[1] = ambient_color_.g();
+    shaderInfo.ambient_color.s[2] = ambient_color_.b();
     return shaderInfo;
 }
     
@@ -821,7 +821,6 @@ _intersect* scene::intersect (const viewRay* rays, int numRays) const noexcept
     for (int i = 0; i < numObjects; ++i)
     {
         objects[i] = objects_[i]->to_struct();
-//        std::cout << "Object " << i << " is_circ: " << objects[i].is_circle << std::endl;
     }
     xsects = cl_intersect(objects, numObjects, rays, numRays, tmax, tmin);
     
@@ -851,11 +850,6 @@ hdr_image scene::render() const noexcept {
     for (size_t i = 0; i < numPixels; ++i) {
         pixels[i] = {{static_cast<float>(i % w) + 1.0f, static_cast<float>(i / w) + 1.0f, 0.0f}};
     }
-//    std::cout << "pixel array breakdown" << std::endl;
-//    for (int i = 0; i < numPixels; ++i)
-//    {
-//       std::cout <<"pixel[" << i << "]: " << pixels[i].s[0] << ", " << pixels[i].s[1] << ", " << pixels[i].s[2] << std::endl;
-//    }
     
     
     vp cl_viewport = viewport_->to_struct();

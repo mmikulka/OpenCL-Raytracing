@@ -8,8 +8,6 @@
 
 #define NUM_GLOBAL_WITEMS 160000
 
-const int deviceNum = 0;
-
 //debuging float 3;
 void printfloat3(cl_float3 debug)
 {
@@ -39,6 +37,11 @@ cl::Program initCL ()
     }
     
     // use device[1] because that's a GPU; device[0] is the CPU
+    int deviceNum = 0;
+    if (devices.size() > 1)
+    {
+        deviceNum = 1
+    }
     cl::Device default_device=all_devices[deviceNum];
     //std::cout<< "Using device: "<<default_device.getInfo<CL_DEVICE_NAME>()<<"\n";
     
@@ -187,7 +190,7 @@ viewRay* cl_persp_viewrays(cam& camera, cl_float2 * uV, int numPixels, float foc
 
 intersect* cl_intersect (object * objects, int numObjects, const viewRay* rays, int numRays, float t_upper_bound, float t_lower_bound)
 {
-    typedef rgbColor bug;
+    typedef float bug;
     
     
     cl::Program program = initCL();
@@ -229,7 +232,7 @@ intersect* cl_intersect (object * objects, int numObjects, const viewRay* rays, 
     queue.enqueueReadBuffer(buffer_debug, CL_TRUE, 0, sizeof(bug)*numRays, debug);
 
     queue.finish();
-    
+  
     return C;
 }
 
@@ -267,13 +270,15 @@ rgbColor* cl_flat_shader(const intersect* xsect, int numIntersections, rgbColor 
     
     queue.finish();
     
+    for (int i = 0; i < numIntersections; ++i)
+    
     return C;
 }
 
 rgbColor* cl_phong_shader(const intersect* xsect, phong& phongInfo, int numIntersections, rgbColor background, const cam camera, light* lights, int numLights)
 {
  
-//    typedef float bug;
+    typedef cl_float3 bug;
     
     cl::Program program = initCL();
     
@@ -288,13 +293,13 @@ rgbColor* cl_phong_shader(const intersect* xsect, phong& phongInfo, int numInter
     
     // construct vectors
     rgbColor* C = new rgbColor[numIntersections];
-//    bug* debug = new bug[numIntersections];
+    bug* debug = new bug[numIntersections];
     
     //put aside memory for buffer
     cl::Buffer buffer_intersects(context, CL_MEM_READ_WRITE, sizeof(intersect) * numIntersections);
     cl::Buffer buffer_result(context, CL_MEM_READ_WRITE, sizeof(rgbColor) * numIntersections);
     cl::Buffer buffer_lights(context, CL_MEM_READ_WRITE, sizeof(light) * numLights);
-//    cl::Buffer buffer_debug(context, CL_MEM_READ_WRITE, sizeof(bug) * numLights);
+    cl::Buffer buffer_debug(context, CL_MEM_READ_WRITE, sizeof(bug) * numIntersections);
     
     //write arrays to buffer
     queue.enqueueWriteBuffer(buffer_intersects, CL_TRUE, 0, sizeof(intersect) * numIntersections, xsect);
@@ -307,21 +312,13 @@ rgbColor* cl_phong_shader(const intersect* xsect, phong& phongInfo, int numInter
     phong_kernel.setArg(4, camera);
     phong_kernel.setArg(5, buffer_lights);
     phong_kernel.setArg(6, numLights);
-    //phong_kernel.setArg(7, buffer_debug);
+    phong_kernel.setArg(7, buffer_debug);
     
     queue.enqueueNDRangeKernel(phong_kernel, cl::NullRange, cl::NDRange(NUM_GLOBAL_WITEMS), cl::NDRange(32));
     queue.enqueueReadBuffer(buffer_result, CL_TRUE, 0, sizeof(rgbColor)*numIntersections, C);
-//    queue.enqueueReadBuffer(buffer_result, CL_TRUE, 0, sizeof(bug)*numIntersections, debug);
+    queue.enqueueReadBuffer(buffer_debug, CL_TRUE, 0, sizeof(bug)*numIntersections, debug);
     
     queue.finish();
-    
-    /*for (int i = 0; i < numIntersections; ++i)
-    {
-        //if (debug[i].b > 0)
-        {
-            std::cout << "color " << i << " r: " << debug[i] << std:: endl;//.r << " g: " << debug[i].g << " b: " << debug[i].b << std::endl;
-        }
-    }*/
     
     return C;
 }
