@@ -38,9 +38,9 @@ cl::Program initCL ()
     
     // use device[1] because that's a GPU; device[0] is the CPU
     int deviceNum = 0;
-    if (devices.size() > 1)
+    if (all_devices.size() > 1)
     {
-        deviceNum = 1
+        deviceNum = 1;
     }
     cl::Device default_device=all_devices[deviceNum];
     //std::cout<< "Using device: "<<default_device.getInfo<CL_DEVICE_NAME>()<<"\n";
@@ -269,8 +269,6 @@ rgbColor* cl_flat_shader(const intersect* xsect, int numIntersections, rgbColor 
     queue.enqueueReadBuffer(buffer_C2, CL_TRUE, 0, sizeof(rgbColor)*numIntersections, C);
     
     queue.finish();
-    
-    for (int i = 0; i < numIntersections; ++i)
     
     return C;
 }
